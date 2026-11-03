@@ -2,7 +2,7 @@
 
 Ứng dụng **xem phim đa nền tảng** (Android + iOS) viết bằng **Kotlin Multiplatform** và **Compose Multiplatform**, sử dụng nguồn dữ liệu phim công khai từ **VSMOV**.
 
-> Trạng thái hiện tại: khung dự án KMP đã build/chạy được trên Android và iOS. Các màn hình phim được xây dần theo [`TUTORIAL.md`](./TUTORIAL.md).
+> Trạng thái hiện tại: bộ khung KMP đã có đủ tầng API, Repository, các màn Trang chủ / Tìm kiếm / Lọc / Chi tiết / Xem phim và điều hướng. Android build + test chạy được; iOS cần build trên macOS.
 
 ---
 
@@ -214,14 +214,15 @@ Chọn simulator/device trong Xcode và Run. iOS simulator chỉ chạy trên ma
 
 ## Lộ trình
 
-- [ ] Dựng tầng API: Ktor client, DTO, Repository.
-- [ ] Màn hình Trang chủ (hero + các hàng phim).
-- [ ] Màn hình Tìm kiếm + Lọc.
-- [ ] Màn hình Chi tiết + danh sách tập/server.
-- [ ] Màn hình Xem phim (WebView/WKWebView).
+- [x] Dựng tầng API: Ktor client, DTO, Repository.
+- [x] Màn hình Trang chủ (hero + các hàng phim).
+- [x] Màn hình Tìm kiếm + Lọc.
+- [x] Màn hình Chi tiết + danh sách tập/server.
+- [x] Màn hình Xem phim (WebView/WKWebView).
 - [ ] Yêu thích & lịch sử xem (lưu cục bộ).
-- [ ] Dark theme, pull-to-refresh, xử lý lỗi/empty state.
-- [ ] Test repository/ViewModel, tối ưu hiệu năng.
+- [x] Dark theme cơ bản, xử lý lỗi/empty state.
+- [x] Test repository với MockEngine.
+- [ ] Pull-to-refresh, cache ảnh/API và tối ưu hiệu năng.
 
 Hướng dẫn từng bước: [`TUTORIAL.md`](./TUTORIAL.md).
 
