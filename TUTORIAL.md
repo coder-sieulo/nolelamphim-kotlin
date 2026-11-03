@@ -1,105 +1,277 @@
-# TUTORIAL — Tự code màn hình mới & gọi API (Kotlin Multiplatform + Compose)
+# TUTORIAL — Tự xây app xem phim Nolelamphim trên API có sẵn
 
-> Tài liệu này viết cho chính project **Nolelamphim** của bạn.
-> Mục tiêu: sau khi đọc xong bạn tự thêm được màn hình, điều hướng, gọi API, quản lý state và test — không cần nhờ ai viết code.
+> Tài liệu dành cho chính project này. **API phim đã có sẵn**, bạn không cần viết backend.
+> Mục tiêu: tự hoàn thiện app xem phim Android + iOS bằng Kotlin Multiplatform & Compose Multiplatform.
 >
-> **Không sửa gì trong thư mục `build/`.** Đó là output của Gradle.
+> Không sửa gì trong thư mục `build/`. Đó là output của Gradle.
 
 ---
 
-## 0. Bản đồ source code
+## 0. Bạn đang có gì?
 
-```
-Nolelamphim-kotlin/
-├── androidApp/                      # Vỏ Android: Activity + Manifest + resource Android
-│   └── src/main/
-│       ├── kotlin/nolelamphim/vercel/app/MainActivity.kt
-│       ├── AndroidManifest.xml
-│       └── res/values/strings.xml
-│
-├── shared/                          # ★ NƠI VIẾT GẦN NHƯ TOÀN BỘ CODE
-│   └── src/
-│       ├── commonMain/kotlin/nolelamphim/vercel/app/
-│       │   ├── App.kt               # UI gốc
-│       │   ├── Platform.kt          # expect (API dùng chung)
-│       │   └── ...
-│       ├── commonMain/composeResources/
-│       │   └── drawable/            # ảnh/icon dùng chung
-│       ├── androidMain/kotlin/...   # actual riêng Android
-│       ├── iosMain/kotlin/...       # actual riêng iOS
-│       ├── commonTest/...           # test chung
-│       ├── androidHostTest/...      # test JVM
-│       └── iosTest/...              # test iOS (chỉ chạy trên macOS)
-│
-├── iosApp/                          # Vỏ iOS: Xcode project + Info.plist
-├── gradle/libs.versions.toml        # ★ Khai báo version + thư viện
-├── gradle.properties
-├── settings.gradle.kts
-└── build.gradle.kts
-```
-
-### Thông tin project hiện tại
-
-| Thành phần | Giá trị |
+| Thành phần | Trạng thái |
 |---|---|
-| Kotlin | 2.4.21 |
-| Compose Multiplatform | 1.12.2 |
-| Android Gradle Plugin | 9.1.1 |
-| Gradle | 9.5.1 |
-| compileSdk / minSdk / targetSdk | 37 / 24 / 37 |
-| Package name (Android) | `nolelamphim.vercel.app` |
-| Package code shared | `nolelamphim.vercel.app` |
-| Package resource sinh ra | `nolelamphim.shared.generated.resources` |
-| Module | `:androidApp`, `:shared` |
+| Khung KMP Android + iOS | Đã có, build được |
+| UI Compose dùng chung | Đã có `App.kt` mẫu |
+| API phim | **Đã có sẵn** (VSMOV public API) |
+| Tầng network/API client | Chưa có — bạn sẽ tự thêm |
+| Các màn hình phim | Chưa có — bạn sẽ tự thêm |
 
-### Quy tắc chọn thư mục
+Nguồn API:
 
-| Bạn viết gì | Đặt ở đâu |
-|---|---|
-| UI, ViewModel, state, model, repository, gọi API | `shared/src/commonMain/...` |
-| Code chỉ Android dùng (Context, Toast, BuildConfig...) | `shared/src/androidMain/...` |
-| Code chỉ iOS dùng (UIKit...) | `shared/src/iosMain/...` |
-| Ảnh, icon, font, string dùng chung | `shared/src/commonMain/composeResources/...` |
-| Icon launcher, tên app, theme Android | `androidApp/src/main/res/...` |
-| Quyền Android, activity, deep link | `androidApp/src/main/AndroidManifest.xml` |
+- Base URL: `https://vsmov.com/api/`
+- Tài liệu gốc: <https://vsmov.com/api-document>
+- Không cần token, không cần đăng ký cho các endpoint phim.
+- Tất cả request dùng `GET`, trả JSON UTF-8.
 
 ---
 
-## 1. Chuẩn bị: thêm thư viện cần thiết
+## 1. Hợp đồng API (đọc kỹ trước khi code)
 
-Để gọi API bạn cần 4 nhóm thư viện:
+### 1.1. Bảng endpoint
 
-1. **Ktor Client** — HTTP client đa nền tảng.
-2. **kotlinx.serialization** — parse JSON.
-3. **kotlinx.coroutines** — chạy bất đồng bộ.
-4. **navigation-compose** (JetBrains) — điều hướng màn hình cho Compose Multiplatform.
+| Mục đích | Method + Endpoint | Query params |
+|---|---|---|
+| Phim mới cập nhật | `GET /api/danh-sach/phim-moi-cap-nhat` | `page`, `limit` |
+| Danh sách + lọc | `GET /api/danh-sach` | `category`, `country`, `year`, `page`, `limit` |
+| Theo nhóm phim | `GET /api/danh-sach/{slug}` | `page`, `limit` |
+| Tìm kiếm | `GET /api/tim-kiem` | `keyword`, `page`, `limit` |
+| Danh sách thể loại | `GET /api/the-loai` | — |
+| Danh sách quốc gia | `GET /api/quoc-gia` | — |
+| Phim theo thể loại | `GET /api/the-loai/{slug}` | `page`, `limit` |
+| Phim theo quốc gia | `GET /api/quoc-gia/{slug}` | `page`, `limit` |
+| Chi tiết phim | `GET /api/phim/{slug}` | — |
 
-Ngoài ra project **đã có** `lifecycle-viewmodel-compose` và `lifecycle-runtime-compose`, nên không cần thêm để dùng `ViewModel` và `collectAsStateWithLifecycle()`.
+Các `slug` nhóm đã kiểm chứng:
 
-### 1.1. Sửa `gradle/libs.versions.toml`
+```
+phim-moi, phim-bo, phim-le, phim-chieu-rap, phim-moi-cap-nhat,
+subteam, thuyet-minh, long-tieng, dang-chieu, 4k
+```
 
-Thêm vào mục `[versions]`:
+### 1.2. Response danh sách
+
+`GET https://vsmov.com/api/danh-sach/phim-moi-cap-nhat?page=1&limit=20`
+
+```json
+{
+  "status": true,
+  "items": [
+    {
+      "tmdb": {
+        "type": "tv",
+        "id": "279246",
+        "vote_average": "0.0",
+        "vote_count": 0
+      },
+      "imdb": { "id": "tt39325975" },
+      "modified": { "time": "2026-11-04T00:32:45+07:00" },
+      "_id": 54207,
+      "name": "Hoàng Hậu Tái Hôn",
+      "origin_name": "The Remarried Empress",
+      "slug": "hoang-hau-tai-hon",
+      "poster_url": "https://vsmov.com/storage/images/....jpg",
+      "thumb_url": "https://vsmov.com/storage/images/....jpg",
+      "year": 2026
+    }
+  ],
+  "pagination": {
+    "totalItems": 20928,
+    "totalItemsPerPage": 24,
+    "currentPage": 1,
+    "totalPages": 872
+  }
+}
+```
+
+### 1.3. Response chi tiết
+
+`GET https://vsmov.com/api/phim/hoang-hau-tai-hon`
+
+```json
+{
+  "status": true,
+  "msg": "",
+  "movie": {
+    "_id": 54207,
+    "name": "Hoàng Hậu Tái Hôn",
+    "origin_name": "The Remarried Empress",
+    "slug": "hoang-hau-tai-hon",
+    "content": "Mô tả phim...",
+    "type": "series",
+    "status": "ongoing",
+    "poster_url": "https://vsmov.com/storage/images/....jpg",
+    "thumb_url": "https://vsmov.com/storage/images/....jpg",
+    "trailer_url": null,
+    "time": "60 phút",
+    "episode_current": "Tập 2",
+    "episode_total": "10",
+    "quality": "HD",
+    "lang": "Vietsub",
+    "year": 2026,
+    "view": 12345,
+    "chieurap": false,
+    "actor": ["Shin Min-a", "Ju Ji-hoon"],
+    "director": ["Jo Soo-won", "Sim Na-yeon"],
+    "category": [
+      { "id": 15, "name": "Chính Kịch", "slug": "chinh-kich" },
+      { "id": 46, "name": "Viễn Tưởng", "slug": "vien-tuong" }
+    ],
+    "country": [
+      { "id": 10, "name": "Hàn Quốc", "slug": "han-quoc" }
+    ]
+  },
+  "episodes": [
+    {
+      "server_name": "Vietsub #1",
+      "server_data": [
+        {
+          "name": "1",
+          "slug": "tap-1",
+          "filename": "1",
+          "link_embed": "https://v1.streamvsmov.com/video/...."
+        }
+      ]
+    }
+  ]
+}
+```
+
+### 1.4. Response thể loại / quốc gia
+
+`GET https://vsmov.com/api/the-loai`
+
+```json
+{
+  "status": "success",
+  "message": "",
+  "data": {
+    "items": [
+      { "_id": 15, "name": "Chính Kịch", "slug": "chinh-kich" }
+    ]
+  }
+}
+```
+
+Quốc gia có cùng cấu trúc, endpoint `/api/quoc-gia`.
+
+### 1.5. Những điểm "bẫy" của API
+
+1. **`status` không nhất quán**: có endpoint trả `true` (boolean), có endpoint trả `"success"` (string). → **Đừng** khai báo `status: Boolean`; hãy bỏ qua field này trong DTO.
+2. **`totalItemsPerPage` không nhất quán**: lúc là `24`, lúc là `"2"` khi truyền `limit`. → Chỉ khai báo `totalItems`, `currentPage`, `totalPages` (luôn là số).
+3. **`tmdb.vote_average` là String** (`"8.2"`), không phải Double. → Dùng `String?` rồi `toDoubleOrNull()`.
+4. **`poster_url` / `thumb_url` có thể null** → model để nullable, UI hiển thị placeholder.
+5. **`episodes` có thể rỗng** (phim chưa có tập / chỉ có trailer) → UI phải xử lý empty state.
+6. **`link_embed` là trang HTML**, không phải file `.mp4`/`.m3u8` → phát bằng WebView.
+7. **Ảnh là URL tuyệt đối** (`https://vsmov.com/storage/...`) → dùng trực tiếp, không cần ghép base.
+8. **Không có endpoint "trang chủ"** → tự ghép từ nhiều endpoint danh sách.
+9. **Không có endpoint năm phát hành riêng** → dùng `year` trong `/api/danh-sach`.
+
+### 1.6. Kiểm thử API bằng terminal
+
+```bash
+curl -s "https://vsmov.com/api/danh-sach/phim-moi-cap-nhat?page=1&limit=5" | head -c 600
+curl -s "https://vsmov.com/api/danh-sach/phim-bo?page=1&limit=5" | head -c 600
+curl -s "https://vsmov.com/api/tim-kiem?keyword=avengers&limit=5" | head -c 600
+curl -s "https://vsmov.com/api/phim/hoang-hau-tai-hon" | head -c 600
+curl -s "https://vsmov.com/api/the-loai" | head -c 600
+```
+
+---
+
+## 2. Kiến trúc & cấu trúc thư mục
+
+Luồng dữ liệu một chiều:
+
+```
+Composable (UI)
+    ↓ gọi hàm / phát callback
+ViewModel (StateFlow<UiState>)
+    ↓
+Repository (map DTO → model, gộp/cache)
+    ↓
+MovieApi (Ktor)
+    ↓
+https://vsmov.com/api
+```
+
+Quy tắc:
+
+- Composable **không** gọi API, **không** giữ logic tải dữ liệu.
+- ViewModel **không** biết Ktor, chỉ biết Repository.
+- Repository **không** biết Compose.
+- DTO khớp JSON; model khớp nhu cầu UI.
+
+Cấu trúc nên tạo trong `shared/src/commonMain/kotlin/nolelamphim/vercel/app/`:
+
+```
+nolelamphim/vercel/app/
+├── App.kt
+├── navigation/
+│   └── AppNavHost.kt
+├── di/
+│   └── AppContainer.kt
+├── model/
+│   ├── Movie.kt
+│   ├── MovieDetail.kt
+│   └── Episode.kt
+├── data/
+│   ├── MovieRepository.kt
+│   └── remote/
+│       ├── ApiConfig.kt
+│       ├── HttpClientFactory.kt
+│       ├── HttpClientFactory.android.kt
+│       ├── HttpClientFactory.ios.kt
+│       ├── MovieApi.kt
+│       └── dto/
+│           ├── MovieDto.kt
+│           ├── TaxonomyDto.kt
+│           └── MovieDetailDto.kt
+└── ui/
+    ├── components/
+    │   ├── MovieCard.kt
+    │   ├── MovieRow.kt
+    │   └── ErrorView.kt
+    └── screens/
+        ├── home/
+        ├── search/
+        ├── detail/
+        └── watch/
+```
+
+Code riêng nền tảng đặt ở:
+
+- `shared/src/androidMain/kotlin/...`
+- `shared/src/iosMain/kotlin/...`
+
+---
+
+## 3. Thêm thư viện
+
+Mở `gradle/libs.versions.toml`.
+
+### 3.1. `[versions]`
 
 ```toml
 ktor = "3.6.1"
 kotlinx-serialization = "1.12.0"
 kotlinx-coroutines = "1.11.0"
 navigation = "2.10.0"
+coil = "3.6.3"
 ```
 
-Thêm vào mục `[libraries]`:
+### 3.2. `[libraries]`
 
 ```toml
 # JSON
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 # Coroutines
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
-# Ktor client core + plugin
+# Ktor
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-serialization-kotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
-# Ktor engine theo nền tảng
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 # Test
@@ -107,153 +279,96 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 # Navigation
 androidx-navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigation" }
+# Ảnh
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
 ```
 
-Thêm vào mục `[plugins]`:
+### 3.3. `[plugins]`
 
 ```toml
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ```
 
-### 1.2. Khai báo plugin ở root
-
-Mở `build.gradle.kts` (root), thêm dòng:
+### 3.4. Root `build.gradle.kts`
 
 ```kotlin
 alias(libs.plugins.kotlinSerialization) apply false
 ```
 
-### 1.3. Bật plugin serialization cho module shared
+### 3.5. `shared/build.gradle.kts`
 
-Mở `shared/build.gradle.kts`, thêm vào block `plugins { ... }`:
-
-```kotlin
-alias(libs.plugins.kotlinSerialization)
-```
-
-### 1.4. Thêm dependency vào source set
-
-Trong `shared/build.gradle.kts`, bên trong `kotlin { sourceSets { ... } }`:
+Thêm plugin:
 
 ```kotlin
-commonMain.dependencies {
-    // ... các dependency đang có, giữ nguyên ...
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.contentNegotiation)
-    implementation(libs.ktor.serialization.kotlinxJson)
-    implementation(libs.ktor.client.logging)
-}
-
-androidMain.dependencies {
-    // ... giữ nguyên ...
-    implementation(libs.ktor.client.okhttp)
-}
-
-iosMain.dependencies {
-    // ... giữ nguyên ...
-    implementation(libs.ktor.client.darwin)
-}
-
-commonTest.dependencies {
-    // ... giữ nguyên ...
-    implementation(libs.ktor.client.mock)
-    implementation(libs.kotlinx.coroutines.test)
+plugins {
+    // ... các plugin đang có
+    alias(libs.plugins.kotlinSerialization)
 }
 ```
 
-Sau khi sửa xong chạy:
+Thêm dependency vào đúng source set:
+
+```kotlin
+sourceSets {
+    commonMain.dependencies {
+        // ... giữ nguyên dependency hiện có
+        implementation(libs.androidx.navigation.compose)
+        implementation(libs.kotlinx.serialization.json)
+        implementation(libs.kotlinx.coroutines.core)
+        implementation(libs.ktor.client.core)
+        implementation(libs.ktor.client.contentNegotiation)
+        implementation(libs.ktor.serialization.kotlinxJson)
+        implementation(libs.ktor.client.logging)
+        implementation(libs.coil.compose)
+        implementation(libs.coil.network.ktor3)
+    }
+    androidMain.dependencies {
+        implementation(libs.ktor.client.okhttp)
+    }
+    iosMain.dependencies {
+        implementation(libs.ktor.client.darwin)
+    }
+    commonTest.dependencies {
+        implementation(libs.ktor.client.mock)
+        implementation(libs.kotlinx.coroutines.test)
+    }
+}
+```
+
+Kiểm tra:
 
 ```bash
-./gradlew :shared:compileKotlinMetadata --offline
+./gradlew :shared:compileKotlinMetadata
 ```
 
-Nếu pass nghĩa là dependency/plugin đã đúng. (Lần đầu nếu chưa có cache thì bỏ `--offline`.)
+### 3.6. Quyền Internet (Android)
+
+Mở `androidApp/src/main/AndroidManifest.xml`, thêm dưới thẻ `<manifest>`:
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
+API dùng HTTPS nên **không** cần `usesCleartextTraffic`. Chỉ thêm nếu sau này gọi backend nội bộ bằng `http://`.
 
 ---
 
-## 2. Cấu trúc thư mục nên tạo
+## 4. Tầng HTTP client
 
-Đặt trong `shared/src/commonMain/kotlin/nolelamphim/vercel/app/`:
+### 4.1. Hằng số cấu hình
 
-```
-nolelamphim/vercel/app/
-├── App.kt
-├── navigation/
-│   └── AppNavHost.kt          # toàn bộ điều hướng
-├── di/
-│   └── AppContainer.kt        # nơi tạo repository/client dùng chung
-├── model/
-│   └── Movie.kt               # model cho UI
-├── data/
-│   ├── MovieRepository.kt
-│   └── remote/
-│       ├── HttpClientFactory.kt
-│       ├── MovieApi.kt
-│       └── dto/MovieDto.kt
-└── ui/
-    └── screens/
-        ├── home/
-        │   ├── HomeScreen.kt
-        │   └── HomeViewModel.kt
-        └── detail/
-            └── DetailScreen.kt
-```
-
-Luồng dữ liệu nên đi theo một chiều:
-
-```
-UI (Composable) → ViewModel → Repository → API (Ktor) → Server
-        ↑___________ StateFlow (state) __________________|
-```
-
-Không gọi API trực tiếp trong Composable.
-
----
-
-## 3. Bước 1 — Cấu hình HTTP client
-
-### 3.1. Base URL theo nền tảng
-
-Mỗi nền tảng thấy "localhost" khác nhau:
-
-| Môi trường | Base URL |
-|---|---|
-| Android emulator | `http://10.0.2.2:8080/` |
-| Android máy thật cùng Wi-Fi | `http://<IP-LAN-của-máy-tính>:8080/` |
-| Android máy thật + `adb reverse` | `http://localhost:8080/` |
-| iOS simulator | `http://localhost:8080/` |
-| iOS máy thật | `http://<IP-LAN-của-máy-tính>:8080/` |
-| API thật | `https://api.example.com/` |
-
-Tạo `expect` trong `commonMain`:
+Vì API là HTTPS và dùng chung cho mọi nền tảng, không cần `expect/actual` cho base URL:
 
 ```kotlin
 // data/remote/ApiConfig.kt
-expect val apiBaseUrl: String
+const val API_BASE_URL = "https://vsmov.com/api/"
+const val DEFAULT_PAGE_SIZE = 20
 ```
 
-`androidMain`:
+> Base URL **phải có `/` ở cuối**. Khi gọi dùng path **không có `/` ở đầu**, ví dụ `client.get("phim/$slug")`.
 
-```kotlin
-// data/remote/ApiConfig.android.kt
-actual val apiBaseUrl: String = "http://10.0.2.2:8080/"
-```
-
-`iosMain`:
-
-```kotlin
-// data/remote/ApiConfig.ios.kt
-actual val apiBaseUrl: String = "http://localhost:8080/"
-```
-
-> Base URL nên **có dấu `/` ở cuối** và khi gọi API dùng đường dẫn **không có `/` ở đầu**, ví dụ `client.get("movies")`. Nếu không sẽ rất dễ bị mất path.
-
-### 3.2. Tạo client theo nền tảng
-
-`commonMain`:
+### 4.2. Cấu hình chung
 
 ```kotlin
 // data/remote/HttpClientFactory.kt
@@ -273,12 +388,14 @@ import kotlinx.serialization.json.Json
 expect fun createPlatformHttpClient(): HttpClient
 
 val appJson: Json = Json {
-    ignoreUnknownKeys = true   // server trả field lạ thì bỏ qua, không crash
+    ignoreUnknownKeys = true
     isLenient = true
     explicitNulls = false
 }
 
 fun HttpClientConfig<*>.applyCommonConfig() {
+    expectSuccess = true
+
     install(ContentNegotiation) {
         json(appJson)
     }
@@ -291,12 +408,16 @@ fun HttpClientConfig<*>.applyCommonConfig() {
         level = LogLevel.INFO
     }
     defaultRequest {
-        url(apiBaseUrl)
+        url(API_BASE_URL)
         contentType(ContentType.Application.Json)
         headers.append(HttpHeaders.Accept, ContentType.Application.Json.toString())
     }
 }
 ```
+
+`expectSuccess = true` giúp Ktor ném exception khi HTTP 4xx/5xx thay vì trả body lỗi im lặng.
+
+### 4.3. Engine theo nền tảng
 
 `androidMain`:
 
@@ -320,37 +441,11 @@ actual fun createPlatformHttpClient(): HttpClient =
     HttpClient(Darwin) { applyCommonConfig() }
 ```
 
-> Nếu chỉ cần nhanh và không muốn `expect/actual`, có thể thử `HttpClient { applyCommonConfig() }` trong `commonMain` (Ktor tự tìm engine có trên classpath). Cách `expect/actual` ở trên chắc chắn hơn và dễ kiểm soát.
-
-### 3.3. Quyền Internet + HTTP cleartext
-
-**Android:** mở `androidApp/src/main/AndroidManifest.xml`, thêm ngay dưới thẻ `<manifest ...>`:
-
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-```
-
-Nếu gọi `http://` (không phải https) khi dev, Android 9+ sẽ chặn. Cách nhanh cho debug: thêm `android:usesCleartextTraffic="true"` vào thẻ `<application>` — **chỉ dùng khi dev**, đừng đưa lên production.
-
-Cách sạch hơn: tạo `androidApp/src/debug/res/xml/network_security_config.xml` cho phép cleartext tới `10.0.2.2`/localhost, và khai báo `android:networkSecurityConfig="@xml/network_security_config"` trong `<application>`. Production nên dùng HTTPS.
-
-**iOS:** nếu gọi `http://` khi dev, mở `iosApp/iosApp/Info.plist`, thêm:
-
-```xml
-<key>NSAppTransportSecurity</key>
-<dict>
-    <key>NSAllowsLocalNetworking</key>
-    <true/>
-</dict>
-```
-
-Production dùng HTTPS thì không cần.
-
 ---
 
-## 4. Bước 2 — DTO, API, Repository
+## 5. DTO — khớp đúng JSON
 
-### 4.1. DTO (đúng shape JSON của server)
+### 5.1. DTO danh sách phim
 
 ```kotlin
 // data/remote/dto/MovieDto.kt
@@ -358,29 +453,120 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class MovieDto(
-    val id: Int,
-    val title: String,
-    val overview: String = "",
-    @SerialName("poster_path") val posterPath: String? = null,
-    @SerialName("vote_average") val voteAverage: Double = 0.0,
+data class TmdbDto(
+    val type: String? = null,
+    @SerialName("vote_average") val voteAverage: String? = null,
 )
 
 @Serializable
-data class PopularMoviesResponse(
-    val page: Int = 1,
-    val results: List<MovieDto> = emptyList(),
-    @SerialName("total_pages") val totalPages: Int = 1,
+data class MovieSummaryDto(
+    @SerialName("_id") val id: Int,
+    val name: String,
+    @SerialName("origin_name") val originName: String = "",
+    val slug: String,
+    @SerialName("poster_url") val posterUrl: String? = null,
+    @SerialName("thumb_url") val thumbUrl: String? = null,
+    val year: Int? = null,
+    val tmdb: TmdbDto? = null,
+)
+
+@Serializable
+data class PaginationDto(
+    val totalItems: Int = 0,
+    val currentPage: Int = 1,
+    val totalPages: Int = 1,
+)
+
+@Serializable
+data class MovieListResponse(
+    val items: List<MovieSummaryDto> = emptyList(),
+    val pagination: PaginationDto = PaginationDto(),
 )
 ```
 
-Quy tắc:
-- Field JSON khác tên Kotlin → dùng `@SerialName("tên_json")`.
-- Field có thể thiếu → cho default value và/hoặc nullable.
-- Class phải có `@Serializable`.
-- Không đặt logic UI trong DTO.
+### 5.2. DTO thể loại / quốc gia
 
-### 4.2. API
+```kotlin
+// data/remote/dto/TaxonomyDto.kt
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class TaxonomyDto(
+    @SerialName("_id") val id: Int = 0,
+    val name: String,
+    val slug: String,
+)
+
+@Serializable
+data class TaxonomyDataDto(
+    val items: List<TaxonomyDto> = emptyList(),
+)
+
+@Serializable
+data class TaxonomyResponse(
+    val data: TaxonomyDataDto = TaxonomyDataDto(),
+)
+```
+
+### 5.3. DTO chi tiết phim + tập phim
+
+```kotlin
+// data/remote/dto/MovieDetailDto.kt
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class MovieDetailDto(
+    @SerialName("_id") val id: Int,
+    val name: String,
+    @SerialName("origin_name") val originName: String = "",
+    val slug: String,
+    val content: String = "",
+    val type: String = "",
+    val status: String = "",
+    @SerialName("poster_url") val posterUrl: String? = null,
+    @SerialName("thumb_url") val thumbUrl: String? = null,
+    @SerialName("trailer_url") val trailerUrl: String? = null,
+    val time: String? = null,
+    @SerialName("episode_current") val episodeCurrent: String? = null,
+    @SerialName("episode_total") val episodeTotal: String? = null,
+    val quality: String? = null,
+    val lang: String? = null,
+    val year: Int? = null,
+    val view: Long? = null,
+    val chieurap: Boolean? = null,
+    val actor: List<String> = emptyList(),
+    val director: List<String> = emptyList(),
+    val category: List<TaxonomyDto> = emptyList(),
+    val country: List<TaxonomyDto> = emptyList(),
+    val tmdb: TmdbDto? = null,
+)
+
+@Serializable
+data class EpisodeDto(
+    val name: String,
+    val slug: String = "",
+    val filename: String = "",
+    @SerialName("link_embed") val linkEmbed: String = "",
+)
+
+@Serializable
+data class ServerDto(
+    @SerialName("server_name") val serverName: String,
+    @SerialName("server_data") val serverData: List<EpisodeDto> = emptyList(),
+)
+
+@Serializable
+data class MovieDetailResponse(
+    val movie: MovieDetailDto,
+    val episodes: List<ServerDto> = emptyList(),
+)
+```
+
+---
+
+## 6. API service
 
 ```kotlin
 // data/remote/MovieApi.kt
@@ -391,65 +577,211 @@ import io.ktor.client.request.parameter
 
 class MovieApi(private val client: HttpClient) {
 
-    suspend fun getPopular(page: Int = 1): PopularMoviesResponse =
-        client.get("movie/popular") {
+    suspend fun latest(
+        page: Int = 1,
+        limit: Int = DEFAULT_PAGE_SIZE,
+    ): MovieListResponse =
+        client.get("danh-sach/phim-moi-cap-nhat") {
             parameter("page", page)
+            parameter("limit", limit)
         }.body()
 
-    suspend fun getMovieDetail(id: Int): MovieDto =
-        client.get("movie/$id").body()
+    suspend fun byCategory(
+        categorySlug: String,
+        page: Int = 1,
+        limit: Int = DEFAULT_PAGE_SIZE,
+    ): MovieListResponse =
+        client.get("danh-sach/$categorySlug") {
+            parameter("page", page)
+            parameter("limit", limit)
+        }.body()
+
+    suspend fun filtered(
+        category: String? = null,
+        country: String? = null,
+        year: Int? = null,
+        page: Int = 1,
+        limit: Int = DEFAULT_PAGE_SIZE,
+    ): MovieListResponse =
+        client.get("danh-sach") {
+            category?.let { parameter("category", it) }
+            country?.let { parameter("country", it) }
+            year?.let { parameter("year", it) }
+            parameter("page", page)
+            parameter("limit", limit)
+        }.body()
+
+    suspend fun search(
+        keyword: String,
+        page: Int = 1,
+        limit: Int = DEFAULT_PAGE_SIZE,
+    ): MovieListResponse =
+        client.get("tim-kiem") {
+            parameter("keyword", keyword)
+            parameter("page", page)
+            parameter("limit", limit)
+        }.body()
+
+    suspend fun detail(slug: String): MovieDetailResponse =
+        client.get("phim/$slug").body()
+
+    suspend fun genres(): List<TaxonomyDto> =
+        client.get("the-loai").body<TaxonomyResponse>().data.items
+
+    suspend fun countries(): List<TaxonomyDto> =
+        client.get("quoc-gia").body<TaxonomyResponse>().data.items
 }
 ```
 
-Lưu ý:
-- Hàm gọi mạng phải là `suspend`.
+Ghi nhớ:
+
+- Hàm network phải `suspend`.
 - `.body<T>()` cần import `io.ktor.client.call.body`.
-- `client.get(...)` là suspend, không được gọi trên main thread nếu không có coroutine.
+- Không tự ghép URL bằng string có dấu `/` ở đầu path.
+- Ktor tự URL-encode `keyword` tiếng Việt khi dùng `parameter`.
 
-### 4.3. Model cho UI
+---
 
-Tách DTO khỏi model UI để đổi API không ảnh hưởng màn hình:
+## 7. Model & Repository
+
+### 7.1. Model cho UI
 
 ```kotlin
 // model/Movie.kt
 data class Movie(
     val id: Int,
-    val title: String,
-    val overview: String,
+    val name: String,
+    val originName: String,
+    val slug: String,
     val posterUrl: String?,
+    val thumbUrl: String?,
+    val year: Int?,
     val rating: Double,
 )
 
-fun MovieDto.toMovie(): Movie = Movie(
+fun MovieSummaryDto.toMovie(): Movie = Movie(
     id = id,
-    title = title,
-    overview = overview,
-    posterUrl = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" },
-    rating = voteAverage,
+    name = name,
+    originName = originName,
+    slug = slug,
+    posterUrl = posterUrl,
+    thumbUrl = thumbUrl,
+    year = year,
+    rating = tmdb?.voteAverage?.toDoubleOrNull() ?: 0.0,
 )
 ```
 
-### 4.4. Repository
+```kotlin
+// model/MovieDetail.kt
+data class MovieDetail(
+    val id: Int,
+    val name: String,
+    val originName: String,
+    val slug: String,
+    val description: String,
+    val posterUrl: String?,
+    val year: Int?,
+    val quality: String?,
+    val lang: String?,
+    val status: String?,
+    val episodeCurrent: String?,
+    val episodeTotal: String?,
+    val duration: String?,
+    val rating: Double,
+    val categories: List<String>,
+    val countries: List<String>,
+    val actors: List<String>,
+    val directors: List<String>,
+    val servers: List<EpisodeServer>,
+)
+
+fun MovieDetailDto.toDetail(servers: List<ServerDto>): MovieDetail = MovieDetail(
+    id = id,
+    name = name,
+    originName = originName,
+    slug = slug,
+    description = content,
+    posterUrl = posterUrl,
+    year = year,
+    quality = quality,
+    lang = lang,
+    status = status,
+    episodeCurrent = episodeCurrent,
+    episodeTotal = episodeTotal,
+    duration = time,
+    rating = tmdb?.voteAverage?.toDoubleOrNull() ?: 0.0,
+    categories = category.map { it.name },
+    countries = country.map { it.name },
+    actors = actor,
+    directors = director,
+    servers = servers.map { it.toServer() },
+)
+```
+
+```kotlin
+// model/Episode.kt
+data class Episode(
+    val name: String,
+    val slug: String,
+    val embedUrl: String,
+)
+
+data class EpisodeServer(
+    val name: String,
+    val episodes: List<Episode>,
+)
+
+fun ServerDto.toServer(): EpisodeServer = EpisodeServer(
+    name = serverName.trim(),
+    episodes = serverData.map {
+        Episode(
+            name = it.name,
+            slug = it.slug,
+            embedUrl = it.linkEmbed,
+        )
+    },
+)
+```
+
+### 7.2. Repository
 
 ```kotlin
 // data/MovieRepository.kt
 class MovieRepository(private val api: MovieApi) {
 
-    suspend fun popularMovies(page: Int = 1): List<Movie> =
-        api.getPopular(page).results.map { it.toMovie() }
+    suspend fun latest(page: Int = 1): List<Movie> =
+        api.latest(page).items.map { it.toMovie() }
 
-    suspend fun movieDetail(id: Int): Movie =
-        api.getMovieDetail(id).toMovie()
+    suspend fun byCategory(categorySlug: String, page: Int = 1): List<Movie> =
+        api.byCategory(categorySlug, page).items.map { it.toMovie() }
+
+    suspend fun filtered(
+        category: String? = null,
+        country: String? = null,
+        year: Int? = null,
+        page: Int = 1,
+    ): List<Movie> =
+        api.filtered(category, country, year, page).items.map { it.toMovie() }
+
+    suspend fun search(keyword: String, page: Int = 1): List<Movie> =
+        api.search(keyword, page).items.map { it.toMovie() }
+
+    suspend fun detail(slug: String): MovieDetail {
+        val response = api.detail(slug)
+        return response.movie.toDetail(response.episodes)
+    }
+
+    suspend fun genres(): List<Taxonomy> =
+        api.genres().map { Taxonomy(it.name, it.slug) }
+
+    suspend fun countries(): List<Taxonomy> =
+        api.countries().map { Taxonomy(it.name, it.slug) }
 }
+
+data class Taxonomy(val name: String, val slug: String)
 ```
 
-Repository là nơi:
-- gọi 1 hoặc nhiều API rồi gộp,
-- cache (nếu cần),
-- map DTO → model,
-- ném lỗi có ý nghĩa.
-
-### 4.5. Nơi tạo dependency (DI thủ công)
+### 7.3. DI thủ công
 
 ```kotlin
 // di/AppContainer.kt
@@ -460,34 +792,36 @@ object AppContainer {
 }
 ```
 
-Khi app lớn hơn có thể thay bằng Koin/koin-compose. Ban đầu dùng object như trên là đủ.
+Khi app lớn hơn có thể thay bằng Koin, nhưng ban đầu object này là đủ và dễ test.
 
 ---
 
-## 5. Bước 3 — ViewModel + state
+## 8. ViewModel & UiState
 
-### 5.1. Định nghĩa UiState
+### 8.1. Home
 
 ```kotlin
 // ui/screens/home/HomeUiState.kt
 import nolelamphim.vercel.app.model.Movie
 
-sealed interface HomeUiState {
-    data object Loading : HomeUiState
-    data class Success(val movies: List<Movie>) : HomeUiState
-    data class Error(val message: String) : HomeUiState
-}
+data class HomeUiState(
+    val isLoading: Boolean = true,
+    val error: String? = null,
+    val hero: Movie? = null,
+    val latest: List<Movie> = emptyList(),
+    val series: List<Movie> = emptyList(),
+    val singles: List<Movie> = emptyList(),
+    val cinema: List<Movie> = emptyList(),
+)
 ```
-
-Dùng `sealed interface` để Compose `when` bắt buộc xử lý đủ trạng thái.
-
-### 5.2. ViewModel
 
 ```kotlin
 // ui/screens/home/HomeViewModel.kt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -497,7 +831,7 @@ class HomeViewModel(
     private val repository: MovieRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
+    private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
 
     init {
@@ -506,15 +840,125 @@ class HomeViewModel(
 
     fun load() {
         viewModelScope.launch {
-            _uiState.value = HomeUiState.Loading
+            _uiState.value = HomeUiState(isLoading = true)
             try {
-                val movies = repository.popularMovies()
-                _uiState.value = HomeUiState.Success(movies)
+                coroutineScope {
+                    val latest = async { safe { repository.latest() } }
+                    val series = async { safe { repository.byCategory("phim-bo") } }
+                    val singles = async { safe { repository.byCategory("phim-le") } }
+                    val cinema = async { safe { repository.byCategory("phim-chieu-rap") } }
+
+                    val latestMovies = latest.await().getOrDefault(emptyList())
+                    _uiState.value = HomeUiState(
+                        isLoading = false,
+                        hero = latestMovies.firstOrNull(),
+                        latest = latestMovies,
+                        series = series.await().getOrDefault(emptyList()),
+                        singles = singles.await().getOrDefault(emptyList()),
+                        cinema = cinema.await().getOrDefault(emptyList()),
+                    )
+                }
             } catch (e: CancellationException) {
-                throw e                       // KHÔNG nuốt CancellationException
+                throw e
             } catch (e: Exception) {
-                _uiState.value = HomeUiState.Error(
-                    e.message ?: "Không tải được dữ liệu"
+                _uiState.value = HomeUiState(
+                    isLoading = false,
+                    error = e.message ?: "Không tải được trang chủ",
+                )
+            }
+        }
+    }
+}
+
+private suspend fun <T> safe(block: suspend () -> T): Result<T> =
+    try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+```
+
+Điểm hay: `safe` cho phép một hàng phim lỗi nhưng các hàng khác vẫn hiển thị.
+
+### 8.2. Search
+
+```kotlin
+// ui/screens/search/SearchUiState.kt
+data class SearchUiState(
+    val query: String = "",
+    val isLoading: Boolean = false,
+    val results: List<Movie> = emptyList(),
+    val error: String? = null,
+    val page: Int = 0,
+    val canLoadMore: Boolean = false,
+)
+```
+
+```kotlin
+// ui/screens/search/SearchViewModel.kt
+class SearchViewModel(
+    private val repository: MovieRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(SearchUiState())
+    val uiState = _uiState.asStateFlow()
+
+    private var searchJob: Job? = null
+
+    fun onQueryChange(query: String) {
+        _uiState.value = _uiState.value.copy(query = query)
+        searchJob?.cancel()
+
+        if (query.isBlank()) {
+            _uiState.value = SearchUiState(query = query)
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            delay(400) // debounce
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            try {
+                val movies = repository.search(query, page = 1)
+                _uiState.value = SearchUiState(
+                    query = query,
+                    results = movies,
+                    page = 1,
+                    canLoadMore = movies.isNotEmpty(),
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Tìm kiếm thất bại",
+                )
+            }
+        }
+    }
+
+    fun loadMore() {
+        val state = _uiState.value
+        if (state.isLoading || !state.canLoadMore || state.query.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.value = state.copy(isLoading = true)
+            try {
+                val nextPage = state.page + 1
+                val movies = repository.search(state.query, nextPage)
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    results = state.results + movies,
+                    page = nextPage,
+                    canLoadMore = movies.isNotEmpty(),
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    error = e.message ?: "Không tải thêm được",
                 )
             }
         }
@@ -522,88 +966,188 @@ class HomeViewModel(
 }
 ```
 
-Điểm quan trọng:
-- `viewModelScope` tự huỷ khi ViewModel bị clear.
-- Không dùng `GlobalScope`.
-- `catch (e: CancellationException) { throw e }` trước `catch (e: Exception)`.
-- UI chỉ đọc `uiState`, không sửa trực tiếp.
+Cần import: `kotlinx.coroutines.Job`, `kotlinx.coroutines.delay`, `kotlinx.coroutines.launch`, `kotlinx.coroutines.flow.*`, `androidx.lifecycle.*`.
 
-### 5.3. Dùng `Dispatchers`
+### 8.3. Detail
 
-- Công việc CPU nặng: `withContext(Dispatchers.Default) { ... }`.
-- Ktor tự lo IO mạng, không cần `Dispatchers.IO`.
-- Nếu cần `Dispatchers.IO` hãy kiểm tra target có hỗ trợ không; an toàn nhất trong `commonMain` là `Dispatchers.Default`.
+```kotlin
+sealed interface DetailUiState {
+    data object Loading : DetailUiState
+    data class Success(val movie: MovieDetail) : DetailUiState
+    data class Error(val message: String) : DetailUiState
+}
+
+class DetailViewModel(
+    private val repository: MovieRepository,
+    private val slug: String,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<DetailUiState>(DetailUiState.Loading)
+    val uiState = _uiState.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun load() {
+        viewModelScope.launch {
+            _uiState.value = DetailUiState.Loading
+            try {
+                _uiState.value = DetailUiState.Success(repository.detail(slug))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = DetailUiState.Error(
+                    e.message ?: "Không tải được chi tiết phim",
+                )
+            }
+        }
+    }
+}
+```
 
 ---
 
-## 6. Bước 4 — Viết màn hình
+## 9. UI Trang chủ
+
+### 9.1. MovieCard + MovieRow
 
 ```kotlin
-// ui/screens/home/HomeScreen.kt
+// ui/components/MovieCard.kt
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import nolelamphim.vercel.app.di.AppContainer
+import coil3.compose.AsyncImage
+import nolelamphim.vercel.app.model.Movie
 
 @Composable
+fun MovieCard(
+    movie: Movie,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .width(130.dp)
+            .clickable(onClick = onClick),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.DarkGray),
+            contentAlignment = Alignment.Center,
+        ) {
+            AsyncImage(
+                model = movie.posterUrl,
+                contentDescription = movie.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = movie.name,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = buildString {
+                append(movie.year ?: "")
+                if (movie.rating > 0) append("  ⭐ ${movie.rating}")
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+```
+
+```kotlin
+// ui/components/MovieRow.kt
+@Composable
+fun MovieRow(
+    title: String,
+    movies: List<Movie>,
+    onMovieClick: (Movie) -> Unit,
+) {
+    if (movies.isEmpty()) return
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(movies, key = { it.id }) { movie ->
+                MovieCard(
+                    movie = movie,
+                    onClick = { onMovieClick(movie) },
+                )
+            }
+        }
+    }
+}
+```
+
+### 9.2. HomeScreen
+
+```kotlin
+// ui/screens/home/HomeScreen.kt
+@Composable
 fun HomeScreen(
-    onMovieClick: (Int) -> Unit,
+    onMovieClick: (Movie) -> Unit,
     viewModel: HomeViewModel = viewModel {
         HomeViewModel(AppContainer.movieRepository)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    when (val s = state) {
-        is HomeUiState.Loading -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                CircularProgressIndicator()
-            }
-        }
+    when {
+        state.isLoading -> LoadingView()
 
-        is HomeUiState.Error -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(s.message, color = MaterialTheme.colorScheme.error)
-                Button(onClick = viewModel::load) { Text("Thử lại") }
-            }
-        }
+        state.error != null -> ErrorView(
+            message = state.error,
+            onRetry = viewModel::load,
+        )
 
-        is HomeUiState.Success -> {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(s.movies, key = { it.id }) { movie ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onMovieClick(movie.id) }
-                            .padding(16.dp),
-                    ) {
-                        Text(movie.title, style = MaterialTheme.typography.titleMedium)
-                        Text("⭐ ${movie.rating}", style = MaterialTheme.typography.bodySmall)
-                    }
+        else -> {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                state.hero?.let { hero ->
+                    item { HeroBanner(movie = hero, onClick = { onMovieClick(hero) }) }
+                }
+                item {
+                    MovieRow("Mới cập nhật", state.latest, onMovieClick)
+                }
+                item {
+                    MovieRow("Phim bộ", state.series, onMovieClick)
+                }
+                item {
+                    MovieRow("Phim lẻ", state.singles, onMovieClick)
+                }
+                item {
+                    MovieRow("Phim chiếu rạp", state.cinema, onMovieClick)
                 }
             }
         }
@@ -611,171 +1155,614 @@ fun HomeScreen(
 }
 ```
 
-Quy tắc UI:
-- Screen nhận **callback** (`onMovieClick`), không tự điều hướng.
-- Screen không gọi repository/API.
-- Luôn xử lý đủ `Loading`, `Error`, `Success`.
-- `collectAsStateWithLifecycle()` tốt hơn `collectAsState()` trên Android.
-- `items(..., key = { it.id })` giúp list không bị nhảy khi dữ liệu đổi.
-- Tách composable nhỏ nếu file dài.
+`HeroBanner` tự viết: `Box` cao ~420dp, `AsyncImage` dùng `thumbUrl ?: posterUrl`, gradient tối phía dưới, tên phim + nút "Xem ngay". Dùng `Brush.verticalGradient`.
 
-### Preview
-
-Có thể thêm `@Preview` cho từng trạng thái bằng cách tách phần hiển thị thành composable nhận state thuần:
-
-```kotlin
-@Preview
-@Composable
-private fun HomeSuccessPreview() {
-    // Gọi composable con với dữ liệu giả
-}
-```
+`LoadingView` / `ErrorView` là composable nhỏ tự tạo trong `ui/components`.
 
 ---
 
-## 7. Bước 5 — Điều hướng (Navigation Compose)
+## 10. UI Tìm kiếm + Lọc
 
-### 7.1. Tạo NavHost
+### 10.1. SearchScreen
 
 ```kotlin
-// navigation/AppNavHost.kt
-import androidx.compose.runtime.Composable
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import nolelamphim.vercel.app.ui.screens.detail.DetailScreen
-import nolelamphim.vercel.app.ui.screens.home.HomeScreen
-
 @Composable
-fun AppNavHost() {
-    val navController = rememberNavController()
+fun SearchScreen(
+    onMovieClick: (Movie) -> Unit,
+    viewModel: SearchViewModel = viewModel {
+        SearchViewModel(AppContainer.movieRepository)
+    },
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    NavHost(
-        navController = navController,
-        startDestination = "home",
-    ) {
-        composable("home") {
-            HomeScreen(
-                onMovieClick = { id -> navController.navigate("detail/$id") },
+    Column(Modifier.fillMaxSize()) {
+        OutlinedTextField(
+            value = state.query,
+            onValueChange = viewModel::onQueryChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            placeholder = { Text("Tìm phim...") },
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        )
+
+        when {
+            state.isLoading && state.results.isEmpty() -> LoadingView()
+            state.error != null && state.results.isEmpty() -> ErrorView(
+                message = state.error,
+                onRetry = { viewModel.onQueryChange(state.query) },
             )
-        }
-
-        composable(
-            route = "detail/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.IntType }),
-        ) { backStackEntry ->
-            val id = backStackEntry.arguments?.getInt("id") ?: return@composable
-            DetailScreen(
-                movieId = id,
-                onBack = { navController.popBackStack() },
+            state.query.isBlank() -> EmptyView("Nhập tên phim để tìm")
+            state.results.isEmpty() -> EmptyView("Không tìm thấy phim")
+            else -> MovieGrid(
+                movies = state.results,
+                onMovieClick = onMovieClick,
+                onLoadMore = viewModel::loadMore,
             )
         }
     }
 }
 ```
 
-### 7.2. Gắn vào App.kt
-
-Mở `App.kt`, bên trong `MaterialTheme { ... }` thay nội dung demo bằng:
+`MovieGrid` dùng `LazyVerticalGrid(columns = GridCells.Fixed(3))`, và khi item cuối xuất hiện thì gọi `onLoadMore()`:
 
 ```kotlin
-AppNavHost()
-```
-
-### 7.3. Quy tắc route
-
-- Route đơn giản: `"home"`.
-- Route có tham số: `"detail/{id}"`, navigate bằng `"detail/$id"`.
-- Không truyền object phức tạp qua route; chỉ truyền id rồi màn đích tự load.
-- Muốn xoá backstack khi login/logout: dùng `popUpTo(...)` + `launchSingleTop`.
-- Tránh navigate trong lúc composition; nên trong callback/lambda.
-
-### 7.4. (Tuỳ chọn) Type-safe route
-
-Navigation 2.10 hỗ trợ route là `@Serializable` object/data class:
-
-```kotlin
-@Serializable data object HomeRoute
-@Serializable data class DetailRoute(val id: Int)
-```
-
-Dùng `composable<HomeRoute> { ... }`, `navController.navigate(DetailRoute(id))`, trong detail dùng `backStackEntry.toRoute<DetailRoute>()`. Cần import `androidx.navigation.toRoute`. Chỉ dùng khi bạn đã bật plugin serialization. Nếu mới bắt đầu, route string dễ hiểu hơn.
-
----
-
-## 8. Bước 6 — Viết màn hình Detail (ví dụ)
-
-```kotlin
-// ui/screens/detail/DetailScreen.kt
-@Composable
-fun DetailScreen(
-    movieId: Int,
-    onBack: () -> Unit,
-    viewModel: DetailViewModel = viewModel {
-        DetailViewModel(AppContainer.movieRepository, movieId)
-    },
-) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    // when(state) { ... } giống HomeScreen
+if (index == movies.lastIndex) {
+    LaunchedEffect(index) { onLoadMore() }
 }
 ```
 
-DetailViewModel tương tự HomeViewModel nhưng nhận `movieId` và gọi `repository.movieDetail(movieId)`.
+### 10.2. Bộ lọc
 
-Lưu ý: truyền `movieId` vào constructor `viewModel { }` ổn khi id không đổi trong lúc màn hình tồn tại. Nếu id có thể đổi, dùng `LaunchedEffect(movieId) { viewModel.load(movieId) }`.
+Tạo `FilterViewModel`:
 
-Nút back: gọi `onBack()` từ UI, không gọi thẳng `navController` trong screen.
+```kotlin
+data class FilterUiState(
+    val genres: List<Taxonomy> = emptyList(),
+    val countries: List<Taxonomy> = emptyList(),
+    val selectedGenre: String? = null,
+    val selectedCountry: String? = null,
+    val selectedYear: Int? = null,
+    val results: List<Movie> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null,
+)
+
+class FilterViewModel(
+    private val repository: MovieRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(FilterUiState())
+    val uiState = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val genres = runCatching { repository.genres() }.getOrDefault(emptyList())
+            val countries = runCatching { repository.countries() }.getOrDefault(emptyList())
+            _uiState.value = _uiState.value.copy(
+                genres = genres,
+                countries = countries,
+            )
+        }
+    }
+
+    fun selectGenre(slug: String?) {
+        _uiState.value = _uiState.value.copy(
+            selectedGenre = if (_uiState.value.selectedGenre == slug) null else slug,
+        )
+    }
+
+    fun selectCountry(slug: String?) {
+        _uiState.value = _uiState.value.copy(
+            selectedCountry = if (_uiState.value.selectedCountry == slug) null else slug,
+        )
+    }
+
+    fun selectYear(year: Int?) {
+        _uiState.value = _uiState.value.copy(selectedYear = year)
+    }
+
+    fun apply() {
+        val state = _uiState.value
+        viewModelScope.launch {
+            _uiState.value = state.copy(isLoading = true, error = null)
+            try {
+                val movies = repository.filtered(
+                    category = state.selectedGenre,
+                    country = state.selectedCountry,
+                    year = state.selectedYear,
+                )
+                _uiState.value = state.copy(isLoading = false, results = movies)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    error = e.message ?: "Lọc phim thất bại",
+                )
+            }
+        }
+    }
+}
+```
+
+UI:
+
+- `LazyRow` chip cho thể loại.
+- `LazyRow` chip cho quốc gia.
+- Dropdown/`LazyRow` cho năm (tự sinh `2026 downTo 1990`).
+- Nút "Áp dụng" gọi `apply()`.
+- Kết quả hiển thị bằng `MovieGrid`.
+
+Nếu muốn gộp vào màn Search: thêm nút "Bộ lọc" mở `ModalBottomSheet` chứa các chip trên.
 
 ---
 
-## 9. Resource: ảnh, icon, string dùng chung
-
-Đặt file vào:
-
-```
-shared/src/commonMain/composeResources/
-├── drawable/poster_placeholder.png
-└── values/strings.xml
-```
-
-Dùng:
+## 11. UI Chi tiết phim
 
 ```kotlin
-import nolelamphim.shared.generated.resources.Res
-import nolelamphim.shared.generated.resources.poster_placeholder
-import org.jetbrains.compose.resources.painterResource
+@Composable
+fun DetailScreen(
+    slug: String,
+    onBack: () -> Unit,
+    onPlay: (slug: String, serverIndex: Int, episodeIndex: Int) -> Unit,
+    viewModel: DetailViewModel = viewModel {
+        DetailViewModel(AppContainer.movieRepository, slug)
+    },
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-Image(painter = painterResource(Res.drawable.poster_placeholder), contentDescription = null)
+    when (val s = state) {
+        DetailUiState.Loading -> LoadingView()
+        is DetailUiState.Error -> ErrorView(s.message, onRetry = viewModel::load)
+        is DetailUiState.Success -> DetailContent(
+            movie = s.movie,
+            onBack = onBack,
+            onPlay = onPlay,
+        )
+    }
+}
 ```
 
-String:
+`DetailContent` gồm:
 
-```xml
-<!-- composeResources/values/strings.xml -->
-<resources>
-    <string name="home_title">Phim phổ biến</string>
-</resources>
-```
+1. Poster lớn + gradient + nút Back.
+2. Tên phim, tên gốc, năm, chất lượng, ngôn ngữ, rating.
+3. Chips thể loại/quốc gia.
+4. `episodeCurrent / episodeTotal`, thời lượng, trạng thái.
+5. Mô tả (`description`).
+6. Diễn viên, đạo diễn.
+7. Danh sách server → mỗi server là một hàng chip tập. Bấm tập nào gọi:
+   ```kotlin
+   onPlay(movie.slug, serverIndex, episodeIndex)
+   ```
+
+Nếu `servers.isEmpty()` hiển thị: "Phim chưa có tập phim".
+
+---
+
+## 12. Xem phim bằng WebView / WKWebView
+
+`link_embed` là trang HTML có player, nên cách đơn giản và ổn định nhất là nhúng WebView.
+
+### 12.1. Khai báo expect
 
 ```kotlin
-import nolelamphim.shared.generated.resources.home_title
-import org.jetbrains.compose.resources.stringResource
+// ui/components/VideoPlayer.kt (commonMain)
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 
-Text(stringResource(Res.string.home_title))
+@Composable
+expect fun VideoPlayer(url: String, modifier: Modifier = Modifier)
+```
+
+### 12.2. Android actual
+
+```kotlin
+// ui/components/VideoPlayer.android.kt (androidMain)
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.AndroidView
+
+@Composable
+actual fun VideoPlayer(url: String, modifier: Modifier) {
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            WebView(context).apply {
+                webViewClient = WebViewClient()
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.mediaPlaybackRequiresUserGesture = false
+                loadUrl(url)
+            }
+        },
+        update = { webView ->
+            if (webView.url != url) webView.loadUrl(url)
+        },
+    )
+}
+```
+
+Thêm `android:hardwareAccelerated="true"` cho `<application>` nếu video bị đen (mặc định thường đã bật).
+
+### 12.3. iOS actual
+
+```kotlin
+// ui/components/VideoPlayer.ios.kt (iosMain)
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.UIKitView
+import platform.CoreGraphics.CGRectZero
+import platform.Foundation.NSURL
+import platform.Foundation.NSURLRequest
+import platform.WebKit.WKWebView
+import platform.WebKit.WKWebViewConfiguration
+
+@Composable
+actual fun VideoPlayer(url: String, modifier: Modifier) {
+    UIKitView(
+        modifier = modifier,
+        factory = {
+            WKWebView(
+                frame = CGRectZero,
+                configuration = WKWebViewConfiguration(),
+            ).apply {
+                loadRequest(NSURLRequest(NSURL(string = url)))
+            }
+        },
+        update = { webView ->
+            if (webView.URL?.absoluteString != url) {
+                webView.loadRequest(NSURLRequest(NSURL(string = url)))
+            }
+        },
+    )
+}
+```
+
+Có thể cần `@OptIn(ExperimentalForeignApi::class)` / `@OptIn(ExperimentalComposeUiApi::class)` tùy phiên bản Compose. Nếu IDE báo thiếu, thêm opt-in.
+
+### 12.4. WatchScreen + WatchViewModel
+
+Route `watch/{slug}/{server}/{episode}`. `WatchViewModel` nhận 3 tham số, gọi lại `repository.detail(slug)`, chọn:
+
+```kotlin
+val embedUrl = detail.servers
+    .getOrNull(serverIndex)
+    ?.episodes
+    ?.getOrNull(episodeIndex)
+    ?.embedUrl
+```
+
+Nếu `embedUrl` null/blank → hiển thị lỗi "Tập phim không khả dụng".
+Nếu có → `VideoPlayer(url = embedUrl, modifier = Modifier.fillMaxSize().aspectRatio(16f / 9f))`.
+
+Code đầy đủ cho `WatchViewModel`:
+
+```kotlin
+sealed interface WatchUiState {
+    data object Loading : WatchUiState
+    data class Success(
+        val movieName: String,
+        val episodeName: String,
+        val embedUrl: String,
+    ) : WatchUiState
+    data class Error(val message: String) : WatchUiState
+}
+
+class WatchViewModel(
+    private val repository: MovieRepository,
+    private val slug: String,
+    private val serverIndex: Int,
+    private val episodeIndex: Int,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<WatchUiState>(WatchUiState.Loading)
+    val uiState = _uiState.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun load() {
+        viewModelScope.launch {
+            _uiState.value = WatchUiState.Loading
+            try {
+                val detail = repository.detail(slug)
+                val episode = detail.servers
+                    .getOrNull(serverIndex)
+                    ?.episodes
+                    ?.getOrNull(episodeIndex)
+
+                _uiState.value = if (episode == null || episode.embedUrl.isBlank()) {
+                    WatchUiState.Error("Tập phim không khả dụng")
+                } else {
+                    WatchUiState.Success(
+                        movieName = detail.name,
+                        episodeName = episode.name,
+                        embedUrl = episode.embedUrl,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = WatchUiState.Error(
+                    e.message ?: "Không mở được tập phim",
+                )
+            }
+        }
+    }
+}
+```
+
+`WatchScreen`:
+
+```kotlin
+@Composable
+fun WatchScreen(
+    slug: String,
+    serverIndex: Int,
+    episodeIndex: Int,
+    onBack: () -> Unit,
+    viewModel: WatchViewModel = viewModel {
+        WatchViewModel(
+            repository = AppContainer.movieRepository,
+            slug = slug,
+            serverIndex = serverIndex,
+            episodeIndex = episodeIndex,
+        )
+    },
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
+
+    Column(Modifier.fillMaxSize()) {
+        when (val s = state) {
+            WatchUiState.Loading -> LoadingView()
+
+            is WatchUiState.Error -> ErrorView(s.message, onRetry = viewModel::load)
+
+            is WatchUiState.Success -> {
+                VideoPlayer(
+                    url = s.embedUrl,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f),
+                )
+                Text(
+                    text = "${s.movieName} — ${s.episodeName}",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(16.dp),
+                )
+                TextButton(onClick = { uriHandler.openUri(s.embedUrl) }) {
+                    Text("Mở bằng trình duyệt")
+                }
+            }
+        }
+    }
+}
+```
+
+Nếu muốn video toàn màn hình/landscape, xử lý riêng ở `androidMain`/`iosMain`; bản cơ bản chỉ cần khung 16:9 như trên.
+
+Mẹo: thêm nút "Mở bằng trình duyệt" dùng `LocalUriHandler.current.openUri(embedUrl)` nếu WebView bị chặn.
+
+---
+
+## 13. Điều hướng + Bottom bar
+
+### 13.1. Khai báo route
+
+```kotlin
+// navigation/Routes.kt
+object Routes {
+    const val HOME = "home"
+    const val SEARCH = "search"
+    const val DETAIL = "detail/{slug}"
+    const val WATCH = "watch/{slug}/{server}/{episode}"
+
+    fun detail(slug: String) = "detail/$slug"
+    fun watch(slug: String, server: Int, episode: Int) =
+        "watch/$slug/$server/$episode"
+}
+```
+
+### 13.2. NavHost + bottom bar
+
+```kotlin
+// navigation/AppNavHost.kt
+@Composable
+fun AppNavHost() {
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+
+    val showBottomBar = currentRoute == Routes.HOME || currentRoute == Routes.SEARCH
+
+    Scaffold(
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar {
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.HOME,
+                        onClick = {
+                            navController.navigate(Routes.HOME) {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        },
+                        icon = { Icon(Icons.Default.Home, null) },
+                        label = { Text("Trang chủ") },
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.SEARCH,
+                        onClick = {
+                            navController.navigate(Routes.SEARCH) {
+                                popUpTo(Routes.HOME)
+                                launchSingleTop = true
+                            }
+                        },
+                        icon = { Icon(Icons.Default.Search, null) },
+                        label = { Text("Tìm kiếm") },
+                    )
+                }
+            }
+        },
+    ) { padding ->
+        NavHost(
+            navController = navController,
+            startDestination = Routes.HOME,
+            modifier = Modifier.padding(padding),
+        ) {
+            composable(Routes.HOME) {
+                HomeScreen(
+                    onMovieClick = { movie ->
+                        navController.navigate(Routes.detail(movie.slug))
+                    },
+                )
+            }
+
+            composable(Routes.SEARCH) {
+                SearchScreen(
+                    onMovieClick = { movie ->
+                        navController.navigate(Routes.detail(movie.slug))
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.DETAIL,
+                arguments = listOf(navArgument("slug") { type = NavType.StringType }),
+            ) { entry ->
+                val slug = entry.arguments?.getString("slug") ?: return@composable
+                DetailScreen(
+                    slug = slug,
+                    onBack = { navController.popBackStack() },
+                    onPlay = { movieSlug, server, episode ->
+                        navController.navigate(Routes.watch(movieSlug, server, episode))
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.WATCH,
+                arguments = listOf(
+                    navArgument("slug") { type = NavType.StringType },
+                    navArgument("server") { type = NavType.IntType },
+                    navArgument("episode") { type = NavType.IntType },
+                ),
+            ) { entry ->
+                val slug = entry.arguments?.getString("slug") ?: return@composable
+                val server = entry.arguments?.getInt("server") ?: 0
+                val episode = entry.arguments?.getInt("episode") ?: 0
+                WatchScreen(
+                    slug = slug,
+                    serverIndex = server,
+                    episodeIndex = episode,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+        }
+    }
+}
+```
+
+### 13.3. Gắn vào App.kt
+
+Trong `App.kt`, thay nội dung demo bằng:
+
+```kotlin
+@Composable
+fun App() {
+    MaterialTheme(
+        colorScheme = darkColorScheme(),
+    ) {
+        AppNavHost()
+    }
+}
+```
+
+Có thể thêm `@Preview` cho từng màn hình.
+
+---
+
+## 14. Tải ảnh bằng Coil
+
+Đã thêm `coil-compose` + `coil-network-ktor3`. Dùng:
+
+```kotlin
+AsyncImage(
+    model = movie.posterUrl,
+    contentDescription = movie.name,
+    contentScale = ContentScale.Crop,
+    modifier = Modifier.fillMaxSize(),
+)
 ```
 
 Lưu ý:
-- Tên file chỉ dùng chữ thường, số, dấu `_`.
-- Sau khi thêm resource, nếu IDE báo không thấy `Res`, chạy lại Gradle sync/build.
-- Resource của **app Android** (icon launcher, app name) vẫn nằm ở `androidApp/src/main/res/`.
+
+- `model = null` hoặc URL hỏng → ảnh trống; đặt `Box` nền màu tối phía sau để UI không bị trắng.
+- Coil tự cache ảnh; không cần tự viết cache.
+- Nếu ảnh không tải trên iOS, kiểm tra `coil-network-ktor3` đã nằm trong `commonMain` và engine Darwin đã có trong `iosMain`.
+- Không dùng `remember { URL(...) }`; truyền thẳng String.
 
 ---
 
-## 10. Test
+## 15. Yêu thích & lịch sử xem (làm sau)
 
-### 10.1. Test repository với MockEngine
+Gợi ý thiết kế:
+
+- Lưu **slug** phim yêu thích (không lưu cả object).
+- Lưu lịch sử: `slug`, `serverIndex`, `episodeIndex`, `episodeName`, `updatedAt`.
+- Serialize danh sách bằng `kotlinx.serialization` thành JSON string.
+
+Cách lưu cục bộ:
+
+| Nền tảng | Công cụ |
+|---|---|
+| Android | `SharedPreferences` / `DataStore` |
+| iOS | `NSUserDefaults` |
+| Cả hai | thư viện `multiplatform-settings` |
+
+Cách gọn nhất về kiến trúc: tạo interface trong `commonMain`:
+
+```kotlin
+interface LocalStore {
+    fun getString(key: String): String?
+    fun putString(key: String, value: String)
+}
+```
+
+- Android actual: `SharedPreferences` (truyền `Context` từ `Application`/`Activity` vào `AppContainer`).
+- iOS actual: `NSUserDefaults.standardUserDefaults`.
+
+Sau đó:
+
+```kotlin
+object FavoritesStore {
+    private const val KEY = "favorite_slugs"
+
+    fun load(store: LocalStore): Set<String> =
+        store.getString(KEY)
+            ?.let { runCatching { Json.decodeFromString<Set<String>>(it) }.getOrNull() }
+            ?: emptySet()
+
+    fun save(store: LocalStore, slugs: Set<String>) {
+        store.putString(KEY, Json.encodeToString(slugs))
+    }
+}
+```
+
+Có thể làm milestone này sau khi Home/Search/Detail/Watch đã chạy ổn.
+
+---
+
+## 16. Test
+
+### 16.1. Test repository với MockEngine
 
 ```kotlin
 // commonTest/.../MovieRepositoryTest.kt
@@ -790,168 +1777,198 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MovieRepositoryTest {
 
     @Test
-    fun popularMovies_mapsDtoToModel() = runTest {
-        val engine = MockEngine { _ ->
+    fun search_mapsItems_andSendsKeyword() = runTest {
+        var requestedUrl = ""
+
+        val engine = MockEngine { request ->
+            requestedUrl = request.url.toString()
             respond(
                 content = """
-                    {"page":1,"results":[{"id":1,"title":"A","vote_average":8.5}]}
+                    {
+                      "status": true,
+                      "items": [
+                        {
+                          "_id": 1,
+                          "name": "Avengers",
+                          "origin_name": "Avengers",
+                          "slug": "avengers",
+                          "poster_url": null,
+                          "thumb_url": null,
+                          "year": 2019,
+                          "tmdb": { "vote_average": "8.2" }
+                        }
+                      ],
+                      "pagination": {
+                        "totalItems": 1,
+                        "currentPage": 1,
+                        "totalPages": 1
+                      }
+                    }
                 """.trimIndent(),
                 status = HttpStatusCode.OK,
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
         }
+
         val client = HttpClient(engine) {
             install(ContentNegotiation) { json() }
         }
         val repository = MovieRepository(MovieApi(client))
 
-        val movies = repository.popularMovies()
+        val result = repository.search("avengers")
 
-        assertEquals(1, movies.size)
-        assertEquals("A", movies.first().title)
+        assertEquals(1, result.size)
+        assertEquals("Avengers", result.first().name)
+        assertEquals(8.2, result.first().rating)
+        assertTrue(requestedUrl.contains("keyword=avengers"))
     }
 }
 ```
 
-### 10.2. Chạy test
+### 16.2. Chạy test
 
 ```bash
-# Tất cả test chung (trên Linux sẽ bỏ qua iOS)
-./gradlew :shared:allTests
-
-# Chỉ test JVM, nhanh
 ./gradlew :shared:testAndroidHostTest
-
-# Test iOS chỉ chạy được trên macOS
-./gradlew :shared:iosSimulatorArm64Test
+./gradlew :shared:allTests
 ```
 
 ---
 
-## 11. Vòng lặp phát triển & lệnh hay dùng
+## 17. Chạy app & debug
 
 ```bash
-# Build APK, không cần thiết bị
+# Build APK
 ./gradlew :androidApp:assembleDebug
 
-# Cài lên emulator/điện thoại đang kết nối
-./gradlew :androidApp:installDebug
-
-# Kiểm tra thiết bị
-adb devices
-
-# Bật emulator có sẵn
+# Bật emulator
 emulator -avd Pixel_5 &
 
-# Đợi emulator boot
+# Đợi boot
 adb wait-for-device
 adb shell getprop sys.boot_completed
 
-# Mở app
+# Cài + chạy
+./gradlew :androidApp:installDebug
 adb shell am start -n nolelamphim.vercel.app/.MainActivity
 
-# Xem log
+# Log app + network
 adb logcat | grep -iE "nolelamphim|ktor|AndroidRuntime"
 
-# Cho app trên máy thật dùng localhost của máy tính
-adb reverse tcp:8080 tcp:8080
-
-# Build + test nhanh
+# Test nhanh
 ./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug
 ```
 
-APK nằm ở:
+APK: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`
 
+iOS:
+
+```bash
+open iosApp/iosApp.xcodeproj
 ```
-androidApp/build/outputs/apk/debug/androidApp-debug.apk
-```
 
-Quy trình mỗi lần sửa code:
-
-1. Sửa file trong `shared/src/commonMain/...`.
-2. Chạy `./gradlew :androidApp:installDebug`.
-3. Xem app + `adb logcat`.
-4. Nếu UI sai, kiểm tra state trong ViewModel trước khi sửa Composable.
-5. Chạy test nếu có logic mới.
+Chọn simulator/device và Run.
 
 ---
 
-## 12. Checklist thêm một màn hình mới
+## 18. Lộ trình làm theo milestone
 
-Ví dụ thêm màn hình `Favorites`:
+### Milestone 1 — Network chạy được
 
-- [ ] Tạo `ui/screens/favorites/FavoritesUiState.kt`
-- [ ] Tạo `FavoritesViewModel.kt`
-- [ ] Tạo `FavoritesScreen.kt` (nhận state + callback)
-- [ ] Thêm route vào `navigation/AppNavHost.kt`
-- [ ] Thêm nút/điều hướng từ màn khác tới route mới
-- [ ] Nếu cần API: thêm hàm vào `MovieApi`, `MovieRepository`
-- [ ] Nếu cần DTO: thêm `@Serializable` class
-- [ ] Nếu cần ảnh/string: thêm vào `composeResources`
-- [ ] Thêm test cho logic mới trong `commonTest`
-- [ ] Chạy `./gradlew :shared:testAndroidHostTest :androidApp:installDebug`
+- [ ] Thêm dependency + plugin serialization.
+- [ ] Thêm `INTERNET` permission.
+- [ ] Tạo `ApiConfig`, `HttpClientFactory` (expect/actual), `MovieApi`.
+- [ ] Viết test gọi thử `latest()` bằng MockEngine.
+- [ ] Chạy `./gradlew :shared:testAndroidHostTest`.
+
+### Milestone 2 — Trang chủ
+
+- [ ] Tạo DTO + model + repository.
+- [ ] Tạo `HomeUiState`, `HomeViewModel`.
+- [ ] Tạo `MovieCard`, `MovieRow`, `HeroBanner`, `LoadingView`, `ErrorView`.
+- [ ] Tạo `HomeScreen`.
+- [ ] Gắn `AppNavHost` + `App.kt`.
+- [ ] Chạy app, kiểm tra ảnh và các hàng phim.
+
+### Milestone 3 — Tìm kiếm & lọc
+
+- [ ] `SearchViewModel` có debounce.
+- [ ] `SearchScreen` với `OutlinedTextField`.
+- [ ] `MovieGrid` + load more.
+- [ ] `FilterViewModel` + chip thể loại/quốc gia/năm.
+- [ ] Kiểm tra tìm tiếng Việt có dấu.
+
+### Milestone 4 — Chi tiết & xem phim
+
+- [ ] `DetailViewModel` + `DetailScreen`.
+- [ ] Hiển thị server/tập.
+- [ ] `VideoPlayer` expect/actual (WebView/WKWebView).
+- [ ] `WatchViewModel` + `WatchScreen`.
+- [ ] Xử lý trường hợp chưa có tập / link lỗi.
+
+### Milestone 5 — Hoàn thiện
+
+- [ ] Yêu thích + lịch sử xem.
+- [ ] Dark theme, pull-to-refresh.
+- [ ] Empty state, error state, loading skeleton.
+- [ ] Test thêm cho search/filter/detail.
+- [ ] Kiểm tra trên cả Android emulator và iOS simulator (nếu có macOS).
 
 ---
 
-## 13. Lỗi thường gặp & cách xử lý
+## 19. Lỗi thường gặp
 
 | Lỗi | Nguyên nhân | Cách xử lý |
 |---|---|---|
-| `No connected devices!` | Không có emulator/điện thoại | Bật emulator, `adb devices`, bật USB debugging |
-| `Cleartext HTTP traffic not permitted` | Gọi `http://` trên Android 9+ | Thêm `usesCleartextTraffic` (dev) hoặc network security config, production dùng HTTPS |
 | `Serializer for class 'X' is not found` | Chưa bật plugin serialization hoặc thiếu `@Serializable` | Thêm plugin vào `shared`, annotate DTO |
-| `JsonDecodingException: Unexpected JSON token` | JSON không khớp DTO | Kiểm tra field, dùng `@SerialName`, `ignoreUnknownKeys = true` |
-| `Unresolved reference: Res` | Resource chưa được generate | Sync/rebuild, kiểm tra đúng thư mục `composeResources` |
-| `Unresolved reference: ktor` | Thiếu dependency hoặc sai source set | Kiểm tra `commonMain`/`androidMain`/`iosMain` trong `shared/build.gradle.kts` |
-| Android emulator gọi `localhost:8080` không được | `localhost` của emulator là chính nó | Dùng `10.0.2.2`, hoặc `adb reverse tcp:8080 tcp:8080` + `localhost` |
-| iOS bị chặn HTTP | App Transport Security | Thêm `NSAllowsLocalNetworking` (dev) hoặc dùng HTTPS |
-| `NetworkOnMainThreadException` | Gọi mạng ngoài coroutine | Gọi trong `viewModelScope.launch` / hàm `suspend` |
-| API trả 404 | Base URL/đường dẫn sai | Base URL có `/` cuối, path không có `/` đầu |
-| `ViewModel` mất state khi xoay màn hình | Dùng `remember` thay vì `viewModel()` | Dùng `androidx.lifecycle.viewmodel.compose.viewModel` |
-| App crash khi rời màn hình | Nuốt `CancellationException` | Rethrow `CancellationException` trước catch `Exception` |
-| iOS test fail trên Linux | Simulator cần macOS | Bỏ qua, dùng test JVM |
+| `Unexpected JSON token` | DTO khai báo sai kiểu (`status`, `totalItemsPerPage`) | Bỏ field không cần, dùng `ignoreUnknownKeys` |
+| `NoTransformationFoundException` | Gọi `.body<T>()` nhưng thiếu `ContentNegotiation` | Cài plugin + `json()` |
+| 404 khi gọi API | Base URL/path sai | Base URL có `/` cuối; path không có `/` đầu |
+| Ảnh không hiện | Thiếu Coil network hoặc URL null | Kiểm tra dependency, dùng placeholder |
+| `Cleartext HTTP traffic not permitted` | Gọi `http://` | API này dùng HTTPS; nếu gọi local thì thêm cấu hình dev |
+| `No connected devices!` | Chưa có emulator/điện thoại | `adb devices`, bật emulator/USB debugging |
+| WebView trắng/đen | Thiếu JS/DOM storage hoặc link chặn | Bật `javaScriptEnabled`, `domStorageEnabled`; thử mở trình duyệt |
+| Video không phát trên iOS | WKWebView chưa load đúng URL | Kiểm tra `NSURL(string = url)`, dùng HTTPS |
+| Tìm kiếm không trả kết quả | Chưa debounce hoặc query rỗng | Debounce 300–500ms, bỏ qua query blank |
+| API bị gọi quá nhiều | Load more/scroll liên tục | Chặn khi `isLoading`, debounce, cache |
+| `ViewModel` mất state | Dùng `remember` thay vì `viewModel()` | Dùng `androidx.lifecycle.viewmodel.compose.viewModel` |
+| iOS test fail trên Linux | Simulator cần macOS | Dùng test JVM |
 | Warning `iosSimulatorArm64Test disabled` | Host Linux | Đã xử lý bằng `kotlin.native.ignoreDisabledTargets=true` |
 
 ---
 
-## 14. Bảo mật & cấu hình
-
-- Không hardcode API key trong source public.
-- Android: có thể đọc key từ `local.properties` rồi đưa vào `BuildConfig` (cần bật `buildFeatures.buildConfig = true` trong `androidApp`).
-- iOS: dùng `xcconfig` hoặc `Info.plist`.
-- Tốt nhất: key nằm ở backend, app gọi backend của bạn.
-- Không commit `local.properties`, file `.jks`, hay token.
-- Bật R8/ProGuard cho release khi đã ổn định; giữ rule cho serialization nếu cần.
-
----
-
-## 15. Thứ tự làm đề xuất (follow đúng thứ tự)
-
-1. Thêm dependency + plugin theo **Mục 1**, chạy `./gradlew :shared:compileKotlinMetadata`.
-2. Tạo `ApiConfig` + `HttpClientFactory` theo **Mục 3**, chạy build để chắc Ktor hoạt động.
-3. Tạo DTO → API → Repository theo **Mục 4**.
-4. Viết `HomeViewModel` + `HomeScreen` theo **Mục 5–6**.
-5. Gắn `AppNavHost` vào `App.kt` theo **Mục 7**.
-6. Thêm màn Detail theo **Mục 8**.
-7. Thêm test theo **Mục 10**.
-8. Chạy app trên emulator, sửa UI, thêm màn tiếp theo theo checklist **Mục 12**.
-
----
-
-## 16. Ghi nhớ nhanh
+## 20. Ghi nhớ nhanh
 
 ```
-UI chỉ hiển thị state + phát callback.
+API: https://vsmov.com/api/  (HTTPS, không token)
+
+Trang chủ  = phim-moi-cap-nhat + phim-bo + phim-le + phim-chieu-rap
+Tìm kiếm   = tim-kiem?keyword=...
+Lọc        = danh-sach?category=&country=&year=&page=&limit=
+Chi tiết   = phim/{slug}
+Thể loại   = the-loai
+Quốc gia   = quoc-gia
+Xem phim   = episodes[].server_data[].link_embed → WebView
+
+UI chỉ hiển thị state + callback.
 ViewModel giữ state + gọi Repository.
-Repository gọi API + map dữ liệu.
-API chỉ biết Ktor.
-DTO khớp JSON, Model khớp UI.
-Mọi thứ dùng chung đặt ở commonMain.
-Code chỉ một nền tảng đặt ở androidMain/iosMain.
+Repository gọi API + map DTO → model.
+DTO khớp JSON; model khớp UI.
+Code dùng chung → commonMain.
+Code riêng nền tảng → androidMain / iosMain.
 Dependency khai báo trong gradle/libs.versions.toml.
-Không sửa build/, không hardcode URL/key.
+Không sửa build/, không hardcode token/URL nội bộ.
 ```
+
+---
+
+## 21. Lưu ý pháp lý
+
+- Nội dung phim, hình ảnh và link phát thuộc VSMOV và các đơn vị bản quyền.
+- App chỉ là client gọi API công khai, **không host lại video**.
+- Tôn trọng điều khoản của nguồn API, không spam request, nên cache/debounce.
+- Khi triển khai thật, cần tuân thủ pháp luật về bản quyền và nội dung tại nơi phân phối.
