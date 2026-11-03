@@ -177,38 +177,143 @@ Chi tiết cấu trúc thư mục và luồng dữ liệu xem trong [`TUTORIAL.m
 - Android Studio (bản hỗ trợ Kotlin Multiplatform) + Android SDK
 - Với iOS: macOS + Xcode
 
-### Android
+### Chạy nhanh Android (TL;DR)
+
+```bash
+# 1. Xem danh sách emulator có sẵn
+emulator -list-avds
+
+# 2. Bật emulator (ví dụ Pixel_5)
+emulator -avd Pixel_5 &
+
+# 3. Chờ emulator boot xong
+adb wait-for-device
+adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 1; done'
+
+# 4. Build + cài + mở app
+./gradlew :androidApp:installDebug
+adb shell am start -n nolelamphim.vercel.app/.MainActivity
+```
+
+### Build Android
 
 ```bash
 # Build APK debug
 ./gradlew :androidApp:assembleDebug
 
-# Cài lên emulator/điện thoại đang kết nối
-./gradlew :androidApp:installDebug
+# Build APK release (cần cấu hình ký nếu muốn phát hành)
+./gradlew :androidApp:assembleRelease
 
-# Kiểm tra thiết bị
+# Chỉ kiểm tra compile phần shared
+./gradlew :shared:compileAndroidMain
+
+# Dọn build cũ
+./gradlew clean
+
+# Dừng Gradle daemon khi bị treo
+./gradlew --stop
+
+# Xem toàn bộ task
+./gradlew tasks
+```
+
+APK debug: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`
+
+### Cài & chạy trên thiết bị/emulator
+
+```bash
+# Kiểm tra thiết bị đang kết nối
 adb devices
 
-# Bật emulator có sẵn (ví dụ)
-emulator -avd Pixel_5 &
+# Cách 1: build + cài qua Gradle
+./gradlew :androidApp:installDebug
+
+# Cách 2: cài APK đã build
+adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
+
+# Mở app
+adb shell am start -n nolelamphim.vercel.app/.MainActivity
+
+# Tắt app
+adb shell am force-stop nolelamphim.vercel.app
+
+# Xoá dữ liệu app (reset trạng thái)
+adb shell pm clear nolelamphim.vercel.app
+
+# Gỡ app
+adb uninstall nolelamphim.vercel.app
 ```
 
-APK: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`
-
-### iOS
+### Emulator
 
 ```bash
-open iosApp/iosApp.xcodeproj
+# Liệt kê AVD
+emulator -list-avds
+
+# Bật bình thường
+emulator -avd Pixel_5
+
+# Bật không snapshot, không âm thanh (nhẹ hơn)
+emulator -avd Pixel_5 -no-snapshot -no-audio
+
+# Bật dạng không cửa sổ (headless)
+emulator -avd Pixel_5 -no-window -no-audio
+
+# Tắt emulator
+adb emu kill
 ```
 
-Chọn simulator/device trong Xcode và Run. iOS simulator chỉ chạy trên macOS.
+> Thêm `&` vào cuối lệnh nếu muốn terminal tiếp tục dùng được ngay.
 
-### Test
+### Test & kiểm tra
 
 ```bash
+# Test repository trên JVM/Android host
 ./gradlew :shared:testAndroidHostTest
+
+# Chỉ chạy một test
+./gradlew :shared:testAndroidHostTest --tests "*MovieRepositoryTest*"
+
+# Chạy toàn bộ test của shared (trên macOS sẽ gồm cả iOS)
 ./gradlew :shared:allTests
+
+# Lint Android
+./gradlew :androidApp:lintDebug
+
+# Build + test một lượt trước khi commit
+./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug
 ```
+
+### Log & debug
+
+```bash
+# Xem log toàn bộ thiết bị
+adb logcat
+
+# Chỉ xem log crash
+adb logcat -s AndroidRuntime
+
+# Xem log của riêng app
+adb logcat --pid=$(adb shell pidof -s nolelamphim.vercel.app)
+
+# Xoá log cũ
+adb logcat -c
+
+# Chụp màn hình
+adb exec-out screencap -p > screen.png
+```
+
+### iOS (chỉ trên macOS)
+
+```bash
+# Mở project trong Xcode
+open iosApp/iosApp.xcodeproj
+
+# Build framework cho iOS Simulator (Apple Silicon)
+./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+```
+
+Chọn simulator/device trong Xcode và bấm Run. iOS simulator chỉ chạy trên macOS.
 
 ---
 
