@@ -65,6 +65,7 @@ fun WatchScreen(
             is WatchUiState.Success -> {
                 VideoPlayer(
                     url = s.playbackUrl,
+                    fallbackUrl = s.embedUrl,
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f),

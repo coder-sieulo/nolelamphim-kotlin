@@ -12,7 +12,14 @@ import platform.WebKit.WKWebView
 import platform.WebKit.WKWebViewConfiguration
 
 @Composable
-actual fun VideoPlayer(url: String, modifier: Modifier) {
+actual fun VideoPlayer(
+    url: String,
+    fallbackUrl: String?,
+    modifier: Modifier,
+) {
+    // WebKit plays HLS itself but cannot strip the provider's segment wrapper, so iOS keeps
+    // using the original embed page rather than the resolved playlist.
+    val target = fallbackUrl ?: url
     UIKitView(
         modifier = modifier,
         factory = {
@@ -20,7 +27,7 @@ actual fun VideoPlayer(url: String, modifier: Modifier) {
                 frame = CGRectMake(0.0, 0.0, 0.0, 0.0),
                 configuration = WKWebViewConfiguration(),
             )
-            val nsUrl = NSURL(string = url)
+            val nsUrl = NSURL(string = target)
             if (nsUrl != null) {
                 webView.loadRequest(NSURLRequest(uRL = nsUrl))
             }

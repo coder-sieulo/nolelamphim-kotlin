@@ -22,11 +22,11 @@ import androidx.media3.ui.PlayerView
 import nolelamphim.vercel.app.data.stream.StreamUrlResolver
 
 @Composable
-actual fun VideoPlayer(url: String, modifier: Modifier) {
+actual fun VideoPlayer(url: String, fallbackUrl: String?, modifier: Modifier) {
     val streamUrl = remember(url) { StreamUrlResolver.resolve(url) }
     if (streamUrl == null) {
         // Unknown source shape: keep the original page player as a safety net.
-        EmbeddedWebPlayer(url = url, modifier = modifier)
+        EmbeddedWebPlayer(url = fallbackUrl ?: url, modifier = modifier)
     } else {
         NativeVideoPlayer(streamUrl = streamUrl, modifier = modifier)
     }
