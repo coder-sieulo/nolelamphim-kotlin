@@ -3,6 +3,8 @@
 Ứng dụng **xem phim đa nền tảng** (Android + iOS) viết bằng **Kotlin Multiplatform** và **Compose Multiplatform**, sử dụng nguồn dữ liệu phim công khai từ **VSMOV**.
 
 > Trạng thái hiện tại: bộ khung KMP đã có đủ tầng API, Repository, các màn Trang chủ / Tìm kiếm / Lọc / Chi tiết / Xem phim và điều hướng. Android build + test chạy được; iOS cần build trên macOS.
+>
+> **Mới bắt đầu với Kotlin?** Đọc [`BEGINNER.md`](./BEGINNER.md) để được hướng dẫn từng bước.
 
 ---
 
