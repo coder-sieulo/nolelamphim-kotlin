@@ -21,6 +21,7 @@ navigation = "2.10.0"
 coil = "3.6.3"
 materialIcons = "1.7.3"
 media3 = "1.11.1"
+compose = "1.7.1"
 
 
 [libraries]

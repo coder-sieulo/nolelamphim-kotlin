@@ -3,12 +3,18 @@ package nolelamphim.vercel.app.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
@@ -25,6 +31,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -33,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
@@ -56,9 +65,7 @@ fun AppNavHost() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    val showQuickMenu = currentRoute == Routes.HOME ||
-        currentRoute == Routes.SEARCH ||
-        currentRoute == Routes.LIBRARY
+    val showQuickMenu = currentRoute != null
 
     Scaffold(
         floatingActionButton = {
@@ -234,50 +241,147 @@ private fun QuickAccessButton(
         animationSpec = tween(240, easing = FastOutSlowInEasing),
         label = "quick-access-rotation",
     )
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (expanded) 0.24f else 0f,
+        animationSpec = tween(260, easing = FastOutSlowInEasing),
+        label = "quick-access-glow",
+    )
+    val homeY by animateDpAsState(
+        targetValue = if (expanded) (-80).dp else 0.dp,
+        animationSpec = tween(260, easing = FastOutSlowInEasing),
+        label = "home-radial-y",
+    )
+    val searchX by animateDpAsState(
+        targetValue = if (expanded) (-57).dp else 0.dp,
+        animationSpec = tween(260, delayMillis = 30, easing = FastOutSlowInEasing),
+        label = "search-radial-x",
+    )
+    val searchY by animateDpAsState(
+        targetValue = if (expanded) (-57).dp else 0.dp,
+        animationSpec = tween(260, delayMillis = 30, easing = FastOutSlowInEasing),
+        label = "search-radial-y",
+    )
+    val libraryX by animateDpAsState(
+        targetValue = if (expanded) (-80).dp else 0.dp,
+        animationSpec = tween(260, delayMillis = 60, easing = FastOutSlowInEasing),
+        label = "library-radial-x",
+    )
 
-    Box {
-        Column(
-            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+    Box(modifier = Modifier.size(180.dp)) {
+        AnimatedVisibility(
+            visible = expanded,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 0.dp, y = homeY),
+            enter = fadeIn(tween(160)) + scaleIn(animationSpec = tween(220)),
+            exit = fadeOut(tween(120)) + scaleOut(animationSpec = tween(180)),
         ) {
-            AnimatedVisibility(
-                visible = expanded,
-                enter = fadeIn(tween(160)) + expandVertically(tween(220)),
-                exit = fadeOut(tween(120)) + shrinkVertically(tween(180)),
+            Box(
+                modifier = Modifier.size(48.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(
-                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    IconButton(onClick = { expanded = false; onHome() }) {
-                        Icon(Icons.Default.Home, contentDescription = "Trang chủ")
-                    }
-                    IconButton(onClick = { expanded = false; onSearch() }) {
-                        Icon(Icons.Default.Search, contentDescription = "Tìm kiếm")
-                    }
-                    IconButton(onClick = { expanded = false; onLibrary() }) {
-                        Icon(Icons.Default.Bookmark, contentDescription = "Thư viện")
-                    }
+                IconButton(onClick = { expanded = false; onHome() }) {
+                    Icon(
+                        Icons.Default.Home,
+                        contentDescription = "Trang chủ",
+                        tint = Color(0xFFF97316),
+                        modifier = Modifier.shadow(
+                            elevation = 18.dp,
+                            shape = CircleShape,
+                            ambientColor = Color(0xFFF97316).copy(alpha = glowAlpha),
+                            spotColor = Color(0xFFF97316).copy(alpha = glowAlpha),
+                        ),
+                    )
                 }
             }
-            IconButton(
-                onClick = { expanded = !expanded },
-                modifier = Modifier
-                    .padding(bottom = 8.dp)
-                    .graphicsLayer {
-                        scaleX = buttonScale
-                        scaleY = buttonScale
-                        rotationZ = iconRotation * 0.08f
-                    },
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = searchX, y = searchY),
+            enter = fadeIn(tween(200, delayMillis = 35)) + scaleIn(animationSpec = tween(220, delayMillis = 35)),
+            exit = fadeOut(tween(100)) + scaleOut(animationSpec = tween(160)),
+        ) {
+            Box(
+                modifier = Modifier.size(48.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = if (expanded) Icons.Default.Close else Icons.Default.Menu,
-                    contentDescription = "Mở điều hướng",
-                    tint = if (currentRoute == Routes.HOME) Color(0xFFF97316) else Color.White,
-                    modifier = Modifier.graphicsLayer {
-                        rotationZ = iconRotation
-                    },
-                )
+                IconButton(onClick = { expanded = false; onSearch() }) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = "Tìm kiếm",
+                        tint = Color(0xFFF97316),
+                        modifier = Modifier.shadow(
+                            elevation = 18.dp,
+                            shape = CircleShape,
+                            ambientColor = Color(0xFFF97316).copy(alpha = glowAlpha),
+                            spotColor = Color(0xFFF97316).copy(alpha = glowAlpha),
+                        ),
+                    )
+                }
+            }
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = libraryX, y = 0.dp),
+            enter = fadeIn(tween(240, delayMillis = 70)) + scaleIn(animationSpec = tween(220, delayMillis = 70)),
+            exit = fadeOut(tween(80)) + scaleOut(animationSpec = tween(140)),
+        ) {
+            Box(
+                modifier = Modifier.size(48.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                IconButton(onClick = { expanded = false; onLibrary() }) {
+                    Icon(
+                        Icons.Default.Bookmark,
+                        contentDescription = "Thư viện",
+                        tint = Color(0xFFF97316),
+                        modifier = Modifier.shadow(
+                            elevation = 18.dp,
+                            shape = CircleShape,
+                            ambientColor = Color(0xFFF97316).copy(alpha = glowAlpha),
+                            spotColor = Color(0xFFF97316).copy(alpha = glowAlpha),
+                        ),
+                    )
+                }
+            }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 8.dp)
+                .size(58.dp)
+                .graphicsLayer {
+                    scaleX = buttonScale
+                    scaleY = buttonScale
+                    rotationZ = iconRotation * 0.08f
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(58.dp)
+                    .background(Color(0xFFF97316).copy(alpha = 0.12f), CircleShape)
+                    .border(
+                        width = 1.dp,
+                        color = Color(0xFFF97316).copy(alpha = 0.48f),
+                        shape = CircleShape,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.Close else Icons.Default.Menu,
+                        contentDescription = "Mở điều hướng",
+                        tint = if (currentRoute == Routes.HOME) Color(0xFFF97316) else Color.White,
+                        modifier = Modifier.graphicsLayer {
+                            rotationZ = iconRotation
+                        },
+                    )
+                }
             }
         }
     }

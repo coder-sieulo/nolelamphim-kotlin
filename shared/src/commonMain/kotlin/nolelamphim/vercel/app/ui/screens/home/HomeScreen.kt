@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -129,7 +130,7 @@ private fun HomeBrandHeader() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-        .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -137,13 +138,13 @@ private fun HomeBrandHeader() {
             model = "https://nolelamphim.vercel.app/logo-64.png",
             contentDescription = "Logo Nô Lệ Làm Phim",
             modifier = Modifier
-                .width(32.dp)
-                .height(32.dp),
+                .width(28.dp)
+                .height(28.dp),
         )
         Text(
             text = "Nô Lệ Làm Phim",
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = Color(0xFFF97316),
         )
     }
 }

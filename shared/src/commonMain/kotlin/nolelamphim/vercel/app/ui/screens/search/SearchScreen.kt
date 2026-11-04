@@ -44,7 +44,7 @@ fun SearchScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "Tìm kiếm",
+            text = "Tìm Phim Với lỏ ",
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(start = 16.dp, top = 8.dp),
         )
