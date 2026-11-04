@@ -9,13 +9,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import nolelamphim.vercel.app.model.Movie
 
 @Composable
@@ -27,6 +35,9 @@ fun MovieRow(
     onSeeAll: (() -> Unit)? = null,
 ) {
     if (movies.isEmpty()) return
+
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -40,6 +51,27 @@ fun MovieRow(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        listState.animateScrollToItem((listState.firstVisibleItemIndex - 3).coerceAtLeast(0))
+                    }
+                },
+                enabled = listState.firstVisibleItemIndex > 0,
+            ) {
+                Icon(Icons.Default.ChevronLeft, contentDescription = "Cuộn sang trái")
+            }
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        listState.animateScrollToItem(
+                            (listState.firstVisibleItemIndex + 3).coerceAtMost(movies.lastIndex),
+                        )
+                    }
+                },
+            ) {
+                Icon(Icons.Default.ChevronRight, contentDescription = "Cuộn sang phải")
+            }
             if (onSeeAll != null) {
                 TextButton(onClick = onSeeAll) {
                     Text("Xem tất cả")
@@ -47,6 +79,7 @@ fun MovieRow(
             }
         }
         LazyRow(
+            state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
