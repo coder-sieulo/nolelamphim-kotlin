@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
@@ -69,12 +70,17 @@ fun AppNavHost() {
                             .widthIn(max = 360.dp)
                             .height(64.dp)
                             .shadow(22.dp, pillShape)
+                            .clip(pillShape)
+                            .background(
+                                color = Color(0xFF181830).copy(alpha = 0.35f),
+                                shape = pillShape,
+                            )
                             .background(
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
-                                        Color.White.copy(alpha = 0.12f),
-                                        Color(0xFF2E2E34).copy(alpha = 0.94f),
-                                        Color(0xFF202024).copy(alpha = 0.98f),
+                                        Color.White.copy(alpha = 0.09f),
+                                        Color.White.copy(alpha = 0.02f),
+                                        Color.White.copy(alpha = 0.06f),
                                     ),
                                 ),
                                 shape = pillShape,
@@ -85,6 +91,22 @@ fun AppNavHost() {
                                 shape = pillShape,
                             ),
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(30.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.22f),
+                                            Color.White.copy(alpha = 0.07f),
+                                            Color.Transparent,
+                                        ),
+                                        radius = 420f,
+                                    ),
+                                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                                ),
+                        )
                         NavigationBar(
                             modifier = Modifier.fillMaxSize(),
                             containerColor = Color.Transparent,
