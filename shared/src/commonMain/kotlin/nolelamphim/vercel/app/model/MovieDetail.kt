@@ -16,8 +16,20 @@ data class MovieDetail(
     val duration: String?,
     val rating: Double,
     val categories: List<String>,
+    val categorySlugs: List<String>,
     val countries: List<String>,
     val actors: List<String>,
     val directors: List<String>,
     val servers: List<EpisodeServer>,
+)
+
+fun MovieDetail.toMovie(): Movie = Movie(
+    id = id,
+    name = name,
+    originName = originName,
+    slug = slug,
+    posterUrl = posterUrl,
+    thumbUrl = posterUrl,
+    year = year,
+    rating = rating,
 )

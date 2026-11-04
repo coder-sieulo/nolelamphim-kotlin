@@ -76,4 +76,63 @@ class MovieRepositoryTest {
         assertEquals(null, result[1].posterUrl)
         assertTrue(requestedUrl.contains("keyword=avengers"))
     }
+
+    @Test
+    fun byCategoryPage_mapsPaginationAndRelatedMovies() = runTest {
+        var requestedUrl = ""
+
+        val engine = MockEngine { request ->
+            requestedUrl = request.url.toString()
+            respond(
+                content = """
+                    {
+                      "status": true,
+                      "items": [
+                        {
+                          "_id": 1,
+                          "name": "Current",
+                          "origin_name": "Current",
+                          "slug": "current",
+                          "poster_url": null,
+                          "thumb_url": null,
+                          "year": 2024
+                        },
+                        {
+                          "_id": 2,
+                          "name": "Related",
+                          "origin_name": "Related",
+                          "slug": "related",
+                          "poster_url": null,
+                          "thumb_url": null,
+                          "year": 2023
+                        }
+                      ],
+                      "pagination": {
+                        "totalItems": 55,
+                        "currentPage": 2,
+                        "totalPages": 5
+                      }
+                    }
+                """.trimIndent(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(appJson) }
+        }
+        val repository = MovieRepository(MovieApi(client))
+
+        val page = repository.byCategoryPage("phim-bo", page = 2)
+        assertEquals(2, page.page)
+        assertEquals(5, page.totalPages)
+        assertEquals(55, page.totalItems)
+        assertTrue(page.hasMore)
+        assertEquals(2, page.movies.size)
+        assertTrue(requestedUrl.contains("page=2"))
+
+        val related = repository.relatedMovies("current", "phim-bo")
+        assertEquals(listOf("related"), related.map { it.slug })
+    }
 }
