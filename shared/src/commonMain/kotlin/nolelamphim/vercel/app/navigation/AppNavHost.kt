@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,6 +40,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -58,18 +61,20 @@ import nolelamphim.vercel.app.ui.screens.home.HomeScreen
 import nolelamphim.vercel.app.ui.screens.library.LibraryScreen
 import nolelamphim.vercel.app.ui.screens.search.SearchScreen
 import nolelamphim.vercel.app.ui.screens.watch.WatchScreen
+import nolelamphim.vercel.app.getPlatform
 
 @Composable
 fun AppNavHost() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val isTv = remember { getPlatform().isTv }
 
     val showQuickMenu = currentRoute != null
 
     Scaffold(
         floatingActionButton = {
-            if (showQuickMenu) {
+            if (showQuickMenu && !isTv) {
                 QuickAccessButton(
                     currentRoute = currentRoute,
                     onHome = {
@@ -96,11 +101,37 @@ fun AppNavHost() {
             }
         },
     ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = Routes.HOME,
-            modifier = Modifier.padding(padding),
-        ) {
+        androidx.compose.foundation.layout.Row(modifier = Modifier.padding(padding)) {
+            if (isTv) {
+                TvNavigationRail(
+                    currentRoute = currentRoute,
+                    onHome = {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.HOME) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    onSearch = {
+                        navController.navigate(Routes.SEARCH) {
+                            popUpTo(Routes.HOME) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onLibrary = {
+                        navController.navigate(Routes.LIBRARY) {
+                            popUpTo(Routes.HOME) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                )
+            }
+            NavHost(
+                navController = navController,
+                startDestination = Routes.HOME,
+                modifier = Modifier.weight(1f),
+            ) {
             composable(Routes.HOME) {
                 HomeScreen(
                     onMovieClick = { movie ->
@@ -209,7 +240,34 @@ fun AppNavHost() {
                     },
                 )
             }
+            }
         }
+    }
+}
+
+@Composable
+private fun TvNavigationRail(
+    currentRoute: String?,
+    onHome: () -> Unit,
+    onSearch: () -> Unit,
+    onLibrary: () -> Unit,
+) {
+    NavigationRail {
+        NavigationRailItem(
+            selected = currentRoute == Routes.HOME,
+            onClick = onHome,
+            icon = { Icon(Icons.Default.Home, contentDescription = "Trang chủ") },
+        )
+        NavigationRailItem(
+            selected = currentRoute == Routes.SEARCH,
+            onClick = onSearch,
+            icon = { Icon(Icons.Default.Search, contentDescription = "Tìm kiếm") },
+        )
+        NavigationRailItem(
+            selected = currentRoute == Routes.LIBRARY,
+            onClick = onLibrary,
+            icon = { Icon(Icons.Default.Bookmark, contentDescription = "Thư viện") },
+        )
     }
 }
 
