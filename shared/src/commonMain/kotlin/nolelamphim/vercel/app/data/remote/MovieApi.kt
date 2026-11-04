@@ -3,7 +3,10 @@ package nolelamphim.vercel.app.data.remote
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import nolelamphim.vercel.app.data.remote.dto.MovieDetailResponse
 import nolelamphim.vercel.app.data.remote.dto.MovieListResponse
 import nolelamphim.vercel.app.data.remote.dto.TaxonomyDto
@@ -64,4 +67,19 @@ class MovieApi(private val client: HttpClient) {
 
     suspend fun countries(): List<TaxonomyDto> =
         client.get("quoc-gia").body<TaxonomyResponse>().data.items
+
+    /**
+     * Downloads the embedded player page. Besides the markup, that page carries the signed
+     * master playlist URL for sources that reject unsigned requests.
+     */
+    suspend fun embedPage(embedUrl: String): String =
+        client.get(embedUrl) {
+            header(HttpHeaders.UserAgent, BROWSER_USER_AGENT)
+        }.bodyAsText()
+
+    private companion object {
+        const val BROWSER_USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+    }
 }

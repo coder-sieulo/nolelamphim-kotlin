@@ -47,6 +47,8 @@ class WatchViewModel(
                         movieName = detail.name,
                         episodeName = episode.name.ifBlank { "Tập ${episodeIndex + 1}" },
                         embedUrl = episode.embedUrl,
+                        playbackUrl = repository.resolveStreamUrl(episode.embedUrl)
+                            ?: episode.embedUrl,
                         hasNextEpisode = episodeIndex + 1 < server.episodes.size,
                     )
                 }

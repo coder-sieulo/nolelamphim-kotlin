@@ -1,10 +1,12 @@
 package nolelamphim.vercel.app.data
 
+import kotlinx.coroutines.CancellationException
 import nolelamphim.vercel.app.data.remote.MovieApi
 import nolelamphim.vercel.app.data.remote.dto.MovieDetailDto
 import nolelamphim.vercel.app.data.remote.dto.MovieListResponse
 import nolelamphim.vercel.app.data.remote.dto.MovieSummaryDto
 import nolelamphim.vercel.app.data.remote.dto.ServerDto
+import nolelamphim.vercel.app.data.stream.StreamUrlResolver
 import nolelamphim.vercel.app.model.Episode
 import nolelamphim.vercel.app.model.EpisodeServer
 import nolelamphim.vercel.app.model.Movie
@@ -54,6 +56,25 @@ class MovieRepository(private val api: MovieApi) {
     suspend fun detail(slug: String): MovieDetail {
         val response = api.detail(slug)
         return response.movie.toDetail(response.episodes)
+    }
+
+    /**
+     * Resolves an episode's embed URL to a URL a native player can open. Sources that use
+     * signed playlists need one extra request to the embed page; everything is best-effort so a
+     * failure still yields the plain playlist URL (or null when the source is unknown).
+     */
+    suspend fun resolveStreamUrl(embedUrl: String): String? {
+        val fallback = StreamUrlResolver.resolve(embedUrl) ?: return null
+        if (StreamUrlResolver.isMediaUrl(embedUrl)) return fallback
+
+        val pageHtml = try {
+            api.embedPage(embedUrl)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        return StreamUrlResolver.signedMasterUrl(pageHtml) ?: fallback
     }
 
     suspend fun genres(): List<Taxonomy> =
