@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Home
@@ -15,12 +19,13 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -57,19 +62,34 @@ fun AppNavHost() {
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Surface(
+                    val pillShape = RoundedCornerShape(32.dp)
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .widthIn(max = 360.dp)
-                            .height(64.dp),
-                        shape = RoundedCornerShape(32.dp),
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 6.dp,
+                            .height(64.dp)
+                            .shadow(22.dp, pillShape)
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.12f),
+                                        Color(0xFF2E2E34).copy(alpha = 0.94f),
+                                        Color(0xFF202024).copy(alpha = 0.98f),
+                                    ),
+                                ),
+                                shape = pillShape,
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = Color.White.copy(alpha = 0.16f),
+                                shape = pillShape,
+                            ),
                     ) {
                         NavigationBar(
                             modifier = Modifier.fillMaxSize(),
-                            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            containerColor = Color.Transparent,
                             tonalElevation = 0.dp,
+                            windowInsets = androidx.compose.foundation.layout.WindowInsets(0),
                         ) {
                             NavigationBarItem(
                                 selected = currentRoute == Routes.HOME,
@@ -79,10 +99,13 @@ fun AppNavHost() {
                                         launchSingleTop = true
                                     }
                                 },
-                                icon = {
-                                    Icon(Icons.Default.Home, contentDescription = "Trang chủ")
-                                },
+                                icon = { Icon(Icons.Default.Home, contentDescription = "Trang chủ") },
                                 alwaysShowLabel = false,
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color.White,
+                                    unselectedIconColor = Color(0xFFB3B3B3),
+                                    indicatorColor = Color(0x33F97316),
+                                ),
                             )
                             NavigationBarItem(
                                 selected = currentRoute == Routes.SEARCH,
@@ -93,10 +116,13 @@ fun AppNavHost() {
                                         restoreState = true
                                     }
                                 },
-                                icon = {
-                                    Icon(Icons.Default.Search, contentDescription = "Tìm kiếm")
-                                },
+                                icon = { Icon(Icons.Default.Search, contentDescription = "Tìm kiếm") },
                                 alwaysShowLabel = false,
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color.White,
+                                    unselectedIconColor = Color(0xFFB3B3B3),
+                                    indicatorColor = Color(0x33F97316),
+                                ),
                             )
                             NavigationBarItem(
                                 selected = currentRoute == Routes.LIBRARY,
@@ -107,10 +133,13 @@ fun AppNavHost() {
                                         restoreState = true
                                     }
                                 },
-                                icon = {
-                                    Icon(Icons.Default.Bookmark, contentDescription = "Thư viện")
-                                },
+                                icon = { Icon(Icons.Default.Bookmark, contentDescription = "Thư viện") },
                                 alwaysShowLabel = false,
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color.White,
+                                    unselectedIconColor = Color(0xFFB3B3B3),
+                                    indicatorColor = Color(0x33F97316),
+                                ),
                             )
                         }
                     }

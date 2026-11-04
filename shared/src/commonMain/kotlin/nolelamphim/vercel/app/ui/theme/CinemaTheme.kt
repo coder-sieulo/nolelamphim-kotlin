@@ -10,19 +10,19 @@ import androidx.compose.ui.unit.sp
 
 private val CinemaColors = darkColorScheme(
     primary = Color(0xFFF97316),
-    onPrimary = Color(0xFF2B1200),
+    onPrimary = Color.White,
     primaryContainer = Color(0xFF7C2D12),
-    onPrimaryContainer = Color(0xFFFFDBCC),
-    secondary = Color(0xFFA1A1AA),
+    onPrimaryContainer = Color.White,
+    secondary = Color(0xFFB3B3B3),
     onSecondary = Color(0xFF202024),
     background = Color(0xFF1B1B1F),
-    onBackground = Color(0xFFF5F5F5),
+    onBackground = Color.White,
     surface = Color(0xFF26262B),
-    onSurface = Color(0xFFF5F5F5),
+    onSurface = Color.White,
     surfaceVariant = Color(0xFF2E2E34),
-    onSurfaceVariant = Color(0xFFA1A1AA),
-    outline = Color(0x337F7F85),
-    outlineVariant = Color(0x267F7F85),
+    onSurfaceVariant = Color(0xFFB3B3B3),
+    outline = Color(0x1AFFFFFF),
+    outlineVariant = Color(0x29FFFFFF),
     error = Color(0xFFEF4444),
 )
 
