@@ -35,7 +35,7 @@ fun HeroBanner(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(420.dp)
+            .height(360.dp)
             .clickable(onClick = onClick),
     ) {
         AsyncImage(
@@ -51,8 +51,8 @@ fun HeroBanner(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color(0xCC0E0E12),
-                            Color(0xFF0E0E12),
+                            Color(0xB31B1B1F),
+                            Color(0xFF1B1B1F),
                         ),
                     ),
                 ),
@@ -82,9 +82,7 @@ fun HeroBanner(
             )
             Button(
                 onClick = onClick,
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .clip(RoundedCornerShape(24.dp)),
+                modifier = Modifier.padding(top = 4.dp),
             ) {
                 Text("Xem ngay")
             }

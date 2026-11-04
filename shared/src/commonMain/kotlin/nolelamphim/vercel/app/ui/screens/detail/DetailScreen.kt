@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -137,6 +138,19 @@ private fun DetailContent(
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                }
+            }
+        }
+
+        movie.servers.firstOrNull()?.episodes?.firstOrNull()?.let { episode ->
+            item {
+                Button(
+                    onClick = { onPlay(movie.slug, 0, 0) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                ) {
+                    Text("Xem ngay · ${episode.name.ifBlank { "Tập 1" }}")
                 }
             }
         }
