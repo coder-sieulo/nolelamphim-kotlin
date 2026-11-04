@@ -29,9 +29,11 @@ fun WatchScreen(
     serverIndex: Int,
     episodeIndex: Int,
     onBack: () -> Unit,
+    onNextEpisode: () -> Unit,
     viewModel: WatchViewModel = viewModel {
         WatchViewModel(
             repository = AppContainer.movieRepository,
+            localLibrary = AppContainer.localLibrary,
             slug = slug,
             serverIndex = serverIndex,
             episodeIndex = episodeIndex,
@@ -80,8 +82,17 @@ fun WatchScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    TextButton(onClick = { uriHandler.openUri(s.embedUrl) }) {
-                        Text("Mở bằng trình duyệt")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (s.hasNextEpisode) {
+                            TextButton(onClick = onNextEpisode) {
+                                Text("Tập tiếp theo →")
+                            }
+                        }
+                        TextButton(onClick = { uriHandler.openUri(s.embedUrl) }) {
+                            Text("Mở bằng trình duyệt")
+                        }
                     }
                 }
             }

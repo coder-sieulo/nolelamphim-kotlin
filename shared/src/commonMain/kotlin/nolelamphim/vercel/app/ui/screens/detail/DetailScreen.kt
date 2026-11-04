@@ -14,9 +14,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,17 +41,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import nolelamphim.vercel.app.di.AppContainer
+import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.model.MovieDetail
 import nolelamphim.vercel.app.ui.components.ErrorView
 import nolelamphim.vercel.app.ui.components.LoadingView
+import nolelamphim.vercel.app.ui.components.MovieRow
 
 @Composable
 fun DetailScreen(
     slug: String,
     onBack: () -> Unit,
     onPlay: (slug: String, serverIndex: Int, episodeIndex: Int) -> Unit,
+    onMovieClick: (slug: String) -> Unit,
     viewModel: DetailViewModel = viewModel {
-        DetailViewModel(AppContainer.movieRepository, slug)
+        DetailViewModel(AppContainer.movieRepository, AppContainer.localLibrary, slug)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -60,8 +69,12 @@ fun DetailScreen(
 
         is DetailUiState.Success -> DetailContent(
             movie = s.movie,
+            related = s.related,
+            isFavorite = s.isFavorite,
             onBack = onBack,
             onPlay = onPlay,
+            onMovieClick = onMovieClick,
+            onToggleFavorite = viewModel::toggleFavorite,
         )
     }
 }
@@ -69,8 +82,12 @@ fun DetailScreen(
 @Composable
 private fun DetailContent(
     movie: MovieDetail,
+    related: List<Movie>,
+    isFavorite: Boolean,
     onBack: () -> Unit,
     onPlay: (slug: String, serverIndex: Int, episodeIndex: Int) -> Unit,
+    onMovieClick: (slug: String) -> Unit,
+    onToggleFavorite: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -78,7 +95,12 @@ private fun DetailContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            DetailHeader(movie = movie, onBack = onBack)
+            DetailHeader(
+                movie = movie,
+                isFavorite = isFavorite,
+                onBack = onBack,
+                onToggleFavorite = onToggleFavorite,
+            )
         }
 
         item {
@@ -237,13 +259,25 @@ private fun DetailContent(
                 }
             }
         }
+
+        if (related.isNotEmpty()) {
+            item {
+                MovieRow(
+                    title = "Phim liên quan",
+                    movies = related,
+                    onMovieClick = { movie -> onMovieClick(movie.slug) },
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun DetailHeader(
     movie: MovieDetail,
+    isFavorite: Boolean,
     onBack: () -> Unit,
+    onToggleFavorite: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -278,6 +312,20 @@ private fun DetailHeader(
                 .background(Color(0x66000000)),
         ) {
             Text("← Quay lại")
+        }
+        IconButton(
+            onClick = onToggleFavorite,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .clip(CircleShape)
+                .background(Color(0x66000000)),
+        ) {
+            Icon(
+                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = if (isFavorite) "Bỏ yêu thích" else "Yêu thích",
+                tint = if (isFavorite) MaterialTheme.colorScheme.primary else Color.White,
+            )
         }
     }
 }
