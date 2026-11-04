@@ -5,35 +5,44 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import nolelamphim.vercel.app.data.local.WatchEntry
 import nolelamphim.vercel.app.di.AppContainer
 import nolelamphim.vercel.app.model.Movie
+import nolelamphim.vercel.app.ui.components.ContinueWatchingRow
 import nolelamphim.vercel.app.ui.components.EmptyView
 import nolelamphim.vercel.app.ui.components.ErrorView
 import nolelamphim.vercel.app.ui.components.HeroBanner
 import nolelamphim.vercel.app.ui.components.LoadingView
 import nolelamphim.vercel.app.ui.components.MovieRow
+import nolelamphim.vercel.app.ui.screens.catalog.CatalogType
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onMovieClick: (Movie) -> Unit,
+    onSeeAll: (String) -> Unit,
+    onContinueClick: (WatchEntry) -> Unit,
     viewModel: HomeViewModel = viewModel {
-        HomeViewModel(AppContainer.movieRepository)
+        HomeViewModel(AppContainer.movieRepository, AppContainer.localLibrary)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val continueWatching by viewModel.continueWatching.collectAsStateWithLifecycle()
 
     when {
         state.isLoading -> LoadingView()
 
-        state.error != null -> ErrorView(
+        state.error != null && state.latest.isEmpty() -> ErrorView(
             message = state.error.orEmpty(),
             onRetry = viewModel::load,
         )
@@ -42,7 +51,11 @@ fun HomeScreen(
             message = "Chưa có phim để hiển thị",
         )
 
-        else -> {
+        else -> PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize(),
+        ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 24.dp),
@@ -63,11 +76,20 @@ fun HomeScreen(
                         )
                     }
                 }
+                if (continueWatching.isNotEmpty()) {
+                    item {
+                        ContinueWatchingRow(
+                            entries = continueWatching,
+                            onEntryClick = onContinueClick,
+                        )
+                    }
+                }
                 item {
                     MovieRow(
                         title = "Mới cập nhật",
                         movies = state.latest,
                         onMovieClick = onMovieClick,
+                        onSeeAll = { onSeeAll(CatalogType.LATEST) },
                     )
                 }
                 item {
@@ -75,6 +97,7 @@ fun HomeScreen(
                         title = "Phim bộ",
                         movies = state.series,
                         onMovieClick = onMovieClick,
+                        onSeeAll = { onSeeAll(CatalogType.SERIES) },
                     )
                 }
                 item {
@@ -82,6 +105,7 @@ fun HomeScreen(
                         title = "Phim lẻ",
                         movies = state.singles,
                         onMovieClick = onMovieClick,
+                        onSeeAll = { onSeeAll(CatalogType.SINGLES) },
                     )
                 }
                 item {
@@ -89,6 +113,7 @@ fun HomeScreen(
                         title = "Phim chiếu rạp",
                         movies = state.cinema,
                         onMovieClick = onMovieClick,
+                        onSeeAll = { onSeeAll(CatalogType.CINEMA) },
                     )
                 }
             }

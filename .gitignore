@@ -1,19 +1,69 @@
-*.iml
-.kotlin
-.gradle
+# ---------------------------------------------------------------------------
+# Gradle / Kotlin
+# ---------------------------------------------------------------------------
+.gradle/
+.kotlin/
+build/
 **/build/
-xcuserdata
 !src/**/build/
+!gradle/wrapper/gradle-wrapper.jar
+*.hprof
+
+# ---------------------------------------------------------------------------
+# Android
+# ---------------------------------------------------------------------------
 local.properties
-.idea
-.DS_Store
-captures
-.externalNativeBuild
-.cxx
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.externalNativeBuild/
+.cxx/
+*.jks
+*.keystore
+!debug.keystore
+output-metadata.json
+
+# ---------------------------------------------------------------------------
+# IDE
+# ---------------------------------------------------------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.fleet/
+*.sublime-workspace
+*.sublime-project
+
+# ---------------------------------------------------------------------------
+# Kotlin Multiplatform / Native
+# ---------------------------------------------------------------------------
+.konan/
+xcuserdata/
+DerivedData/
+Pods/
+.swiftpm/
+
+# ---------------------------------------------------------------------------
+# Xcode
+# ---------------------------------------------------------------------------
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
 !*.xcodeproj/project.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
+
+# ---------------------------------------------------------------------------
+# Misc
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.log
 node_modules/

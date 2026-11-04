@@ -7,6 +7,7 @@ sealed interface WatchUiState {
         val movieName: String,
         val episodeName: String,
         val embedUrl: String,
+        val hasNextEpisode: Boolean = false,
     ) : WatchUiState
 
     data class Error(val message: String) : WatchUiState

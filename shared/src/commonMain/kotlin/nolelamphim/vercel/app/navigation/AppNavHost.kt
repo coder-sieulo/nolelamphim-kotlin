@@ -2,11 +2,8 @@ package nolelamphim.vercel.app.navigation
 
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -23,9 +20,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import nolelamphim.vercel.app.ui.screens.catalog.CatalogScreen
+import nolelamphim.vercel.app.ui.screens.catalog.CatalogType
 import nolelamphim.vercel.app.ui.screens.detail.DetailScreen
 import nolelamphim.vercel.app.ui.screens.filter.FilterScreen
 import nolelamphim.vercel.app.ui.screens.home.HomeScreen
+import nolelamphim.vercel.app.ui.screens.library.LibraryScreen
 import nolelamphim.vercel.app.ui.screens.search.SearchScreen
 import nolelamphim.vercel.app.ui.screens.watch.WatchScreen
 
@@ -35,7 +35,9 @@ fun AppNavHost() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    val showBottomBar = currentRoute == Routes.HOME || currentRoute == Routes.SEARCH
+    val showBottomBar = currentRoute == Routes.HOME ||
+        currentRoute == Routes.SEARCH ||
+        currentRoute == Routes.LIBRARY
 
     Scaffold(
         bottomBar = {
@@ -74,6 +76,23 @@ fun AppNavHost() {
                         },
                         label = { Text("Tìm kiếm") },
                     )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.LIBRARY,
+                        onClick = {
+                            navController.navigate(Routes.LIBRARY) {
+                                popUpTo(Routes.HOME) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Bookmark,
+                                contentDescription = "Thư viện",
+                            )
+                        },
+                        label = { Text("Thư viện") },
+                    )
                 }
             }
         },
@@ -92,6 +111,14 @@ fun AppNavHost() {
                     onMovieClick = { movie ->
                         navController.navigate(Routes.detail(movie.slug))
                     },
+                    onSeeAll = { type ->
+                        navController.navigate(Routes.catalog(type))
+                    },
+                    onContinueClick = { entry ->
+                        navController.navigate(
+                            Routes.watch(entry.slug, entry.serverIndex, entry.episodeIndex),
+                        )
+                    },
                 )
             }
 
@@ -102,6 +129,34 @@ fun AppNavHost() {
                     },
                     onOpenFilter = {
                         navController.navigate(Routes.FILTER)
+                    },
+                )
+            }
+
+            composable(Routes.LIBRARY) {
+                LibraryScreen(
+                    onMovieClick = { slug ->
+                        navController.navigate(Routes.detail(slug))
+                    },
+                    onWatchClick = { entry ->
+                        navController.navigate(
+                            Routes.watch(entry.slug, entry.serverIndex, entry.episodeIndex),
+                        )
+                    },
+                )
+            }
+
+            composable(
+                route = Routes.CATALOG,
+                arguments = listOf(navArgument("type") { type = NavType.StringType }),
+            ) { entry ->
+                val type = entry.arguments?.getString("type") ?: CatalogType.LATEST
+                CatalogScreen(
+                    type = type,
+                    title = CatalogType.titleOf(type),
+                    onBack = { navController.popBackStack() },
+                    onMovieClick = { movie ->
+                        navController.navigate(Routes.detail(movie.slug))
                     },
                 )
             }
@@ -128,6 +183,11 @@ fun AppNavHost() {
                     onPlay = { movieSlug, server, episode ->
                         navController.navigate(Routes.watch(movieSlug, server, episode))
                     },
+                    onMovieClick = { movieSlug ->
+                        navController.navigate(Routes.detail(movieSlug)) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
@@ -147,6 +207,11 @@ fun AppNavHost() {
                     serverIndex = server,
                     episodeIndex = episode,
                     onBack = { navController.popBackStack() },
+                    onNextEpisode = {
+                        navController.navigate(Routes.watch(slug, server, episode + 1)) {
+                            popUpTo(Routes.WATCH) { inclusive = true }
+                        }
+                    },
                 )
             }
         }
