@@ -1,32 +1,26 @@
 package nolelamphim.vercel.app.navigation
 
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -49,134 +43,43 @@ fun AppNavHost() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    val showBottomBar = currentRoute == Routes.HOME ||
+    val showQuickMenu = currentRoute == Routes.HOME ||
         currentRoute == Routes.SEARCH ||
         currentRoute == Routes.LIBRARY
 
     Scaffold(
-        bottomBar = {
-            if (showBottomBar) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    val pillShape = RoundedCornerShape(32.dp)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .widthIn(max = 360.dp)
-                            .height(64.dp)
-                            .shadow(22.dp, pillShape)
-                            .clip(pillShape)
-                            .background(
-                                color = Color(0xFF181830).copy(alpha = 0.35f),
-                                shape = pillShape,
-                            )
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.09f),
-                                        Color.White.copy(alpha = 0.02f),
-                                        Color.White.copy(alpha = 0.06f),
-                                    ),
-                                ),
-                                shape = pillShape,
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = Color.White.copy(alpha = 0.16f),
-                                shape = pillShape,
-                            ),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(30.dp)
-                                .background(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.22f),
-                                            Color.White.copy(alpha = 0.07f),
-                                            Color.Transparent,
-                                        ),
-                                        radius = 420f,
-                                    ),
-                                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                                ),
-                        )
-                        NavigationBar(
-                            modifier = Modifier.fillMaxSize(),
-                            containerColor = Color.Transparent,
-                            tonalElevation = 0.dp,
-                            windowInsets = androidx.compose.foundation.layout.WindowInsets(0),
-                        ) {
-                            NavigationBarItem(
-                                selected = currentRoute == Routes.HOME,
-                                onClick = {
-                                    navController.navigate(Routes.HOME) {
-                                        popUpTo(Routes.HOME) { inclusive = false }
-                                        launchSingleTop = true
-                                    }
-                                },
-                                icon = { Icon(Icons.Default.Home, contentDescription = "Trang chủ") },
-                                alwaysShowLabel = false,
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = Color.White,
-                                    unselectedIconColor = Color(0xFFB3B3B3),
-                                    indicatorColor = Color(0x33F97316),
-                                ),
-                            )
-                            NavigationBarItem(
-                                selected = currentRoute == Routes.SEARCH,
-                                onClick = {
-                                    navController.navigate(Routes.SEARCH) {
-                                        popUpTo(Routes.HOME) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
-                                icon = { Icon(Icons.Default.Search, contentDescription = "Tìm kiếm") },
-                                alwaysShowLabel = false,
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = Color.White,
-                                    unselectedIconColor = Color(0xFFB3B3B3),
-                                    indicatorColor = Color(0x33F97316),
-                                ),
-                            )
-                            NavigationBarItem(
-                                selected = currentRoute == Routes.LIBRARY,
-                                onClick = {
-                                    navController.navigate(Routes.LIBRARY) {
-                                        popUpTo(Routes.HOME) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
-                                icon = { Icon(Icons.Default.Bookmark, contentDescription = "Thư viện") },
-                                alwaysShowLabel = false,
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = Color.White,
-                                    unselectedIconColor = Color(0xFFB3B3B3),
-                                    indicatorColor = Color(0x33F97316),
-                                ),
-                            )
+        floatingActionButton = {
+            if (showQuickMenu) {
+                QuickAccessButton(
+                    currentRoute = currentRoute,
+                    onHome = {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.HOME) { inclusive = false }
+                            launchSingleTop = true
                         }
-                    }
-                }
+                    },
+                    onSearch = {
+                        navController.navigate(Routes.SEARCH) {
+                            popUpTo(Routes.HOME) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onLibrary = {
+                        navController.navigate(Routes.LIBRARY) {
+                            popUpTo(Routes.HOME) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                )
             }
         },
     ) { padding ->
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
-            modifier = if (showBottomBar) {
-                Modifier.padding(padding)
-            } else {
-                Modifier.padding(padding).navigationBarsPadding()
-            },
+            modifier = Modifier.padding(padding),
         ) {
             composable(Routes.HOME) {
                 HomeScreen(
@@ -286,6 +189,61 @@ fun AppNavHost() {
                     },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun QuickAccessButton(
+    currentRoute: String?,
+    onHome: () -> Unit,
+    onSearch: () -> Unit,
+    onLibrary: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("Trang chủ") },
+                leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onHome()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Tìm kiếm") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onSearch()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Thư viện") },
+                leadingIcon = { Icon(Icons.Default.Bookmark, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onLibrary()
+                },
+            )
+        }
+
+        FloatingActionButton(
+            onClick = { expanded = !expanded },
+            shape = CircleShape,
+            containerColor = Color(0xFF2E2E34),
+            contentColor = if (currentRoute == Routes.HOME) Color(0xFFF97316) else Color.White,
+            modifier = Modifier.padding(bottom = 8.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Menu,
+                contentDescription = "Mở điều hướng",
+            )
         }
     }
 }
