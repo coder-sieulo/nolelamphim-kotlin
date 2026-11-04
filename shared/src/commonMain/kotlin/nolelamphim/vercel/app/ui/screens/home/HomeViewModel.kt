@@ -6,34 +6,50 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import nolelamphim.vercel.app.data.MovieRepository
+import nolelamphim.vercel.app.data.local.LocalLibrary
+import nolelamphim.vercel.app.data.local.WatchEntry
+import nolelamphim.vercel.app.ui.screens.catalog.CatalogType
 
 class HomeViewModel(
     private val repository: MovieRepository,
+    localLibrary: LocalLibrary,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
 
+    val continueWatching: StateFlow<List<WatchEntry>> = localLibrary.history
+
     init {
-        load()
+        fetch(isRefresh = false)
     }
 
-    fun load() {
+    fun load() = fetch(isRefresh = false)
+
+    fun refresh() = fetch(isRefresh = true)
+
+    private fun fetch(isRefresh: Boolean) {
         viewModelScope.launch {
-            _uiState.value = HomeUiState(isLoading = true)
+            _uiState.value = if (isRefresh) {
+                _uiState.value.copy(isRefreshing = true, error = null)
+            } else {
+                HomeUiState(isLoading = true)
+            }
             try {
                 coroutineScope {
                     val latest = async { safe { repository.latest() } }
-                    val series = async { safe { repository.byCategory("phim-bo") } }
-                    val singles = async { safe { repository.byCategory("phim-le") } }
-                    val cinema = async { safe { repository.byCategory("phim-chieu-rap") } }
+                    val series = async { safe { repository.byCategory(CatalogType.SERIES) } }
+                    val singles = async { safe { repository.byCategory(CatalogType.SINGLES) } }
+                    val cinema = async { safe { repository.byCategory(CatalogType.CINEMA) } }
 
                     val latestMovies = latest.await().getOrThrow()
                     _uiState.value = HomeUiState(
                         isLoading = false,
+                        isRefreshing = false,
                         hero = latestMovies.firstOrNull(),
                         latest = latestMovies,
                         series = series.await().getOrDefault(emptyList()),
@@ -44,8 +60,9 @@ class HomeViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.value = HomeUiState(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
+                    isRefreshing = false,
                     error = e.message ?: "Không tải được trang chủ",
                 )
             }

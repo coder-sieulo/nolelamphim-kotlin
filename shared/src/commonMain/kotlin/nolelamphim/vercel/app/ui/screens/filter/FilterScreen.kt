@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -31,6 +33,7 @@ import nolelamphim.vercel.app.ui.components.MovieGrid
 
 private val filterYears = (2026 downTo 1990).toList()
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterScreen(
     onBack: () -> Unit,
@@ -86,17 +89,44 @@ fun FilterScreen(
             }
         }
 
-        Button(
-            onClick = viewModel::apply,
+        Text(
+            text = "Sắp xếp",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(SortOption.entries, key = { it.name }) { option ->
+                FilterChip(
+                    selected = state.sort == option,
+                    onClick = { viewModel.selectSort(option) },
+                    label = { Text(option.label) },
+                )
+            }
+        }
+
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Áp dụng bộ lọc")
+            Button(
+                onClick = viewModel::apply,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("Áp dụng bộ lọc")
+            }
+            TextButton(onClick = viewModel::reset) {
+                Text("Đặt lại")
+            }
         }
 
         when {
-            state.isLoading -> LoadingView()
+            state.isLoading && state.results.isEmpty() -> LoadingView()
 
             state.error != null && state.results.isEmpty() -> ErrorView(
                 message = state.error.orEmpty(),
@@ -105,11 +135,17 @@ fun FilterScreen(
 
             state.results.isEmpty() -> EmptyView("Chọn bộ lọc rồi bấm Áp dụng")
 
-            else -> MovieGrid(
-                movies = state.results,
-                onMovieClick = onMovieClick,
+            else -> PullToRefreshBox(
+                isRefreshing = state.isLoading,
+                onRefresh = viewModel::apply,
                 modifier = Modifier.weight(1f),
-            )
+            ) {
+                MovieGrid(
+                    movies = sortMovies(state.results, state.sort),
+                    onMovieClick = onMovieClick,
+                    onLoadMore = viewModel::loadMore,
+                )
+            }
         }
     }
 }

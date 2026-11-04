@@ -4,6 +4,7 @@ import nolelamphim.vercel.app.model.Movie
 
 data class HomeUiState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val error: String? = null,
     val hero: Movie? = null,
     val latest: List<Movie> = emptyList(),
