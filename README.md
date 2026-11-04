@@ -2,7 +2,7 @@
 
 Ứng dụng **xem phim đa nền tảng** (Android + iOS) viết bằng **Kotlin Multiplatform** và **Compose Multiplatform**, sử dụng nguồn dữ liệu phim công khai từ **VSMOV**.
 
-> Trạng thái hiện tại: bộ khung KMP đã có đủ tầng API, Repository, các màn Trang chủ / Tìm kiếm / Lọc / Chi tiết / Xem phim và điều hướng. Android build + test chạy được; iOS cần build trên macOS.
+> Trạng thái hiện tại: bộ khung KMP đã có đủ tầng API, Repository, các màn Trang chủ / Tìm kiếm / Lọc / Chi tiết / Xem phim, thư viện yêu thích & lịch sử xem, phân trang và điều hướng. Android build + test chạy được; iOS cần build trên macOS.
 >
 > **Mới bắt đầu với Kotlin?** Đọc [`BEGINNER.md`](./BEGINNER.md) để được hướng dẫn từng bước.
 
@@ -14,7 +14,7 @@
 - **Tìm kiếm**: tìm theo tên phim, có debounce và phân trang.
 - **Lọc phim**: theo thể loại, quốc gia, năm phát hành; kết hợp nhiều bộ lọc.
 - **Chi tiết phim**: poster, mô tả, diễn viên, đạo diễn, thể loại, quốc gia, trạng thái, số tập.
-- **Xem phim**: chọn server/tập và phát qua `link_embed`.
+- **Xem phim**: chọn server/tập, phát HLS native trên Android (Media3 ExoPlayer), WebView dự phòng; iOS dùng WKWebView với trang embed.
 - **Yêu thích & lịch sử xem**: lưu cục bộ trên thiết bị.
 - **Dark theme** tối ưu cho trải nghiệm xem phim.
 
@@ -145,8 +145,14 @@ curl -s "https://vsmov.com/api/phim/hoang-hau-tai-hon" | head -c 500
 | Async | kotlinx.coroutines, StateFlow |
 | Điều hướng | Navigation Compose (JetBrains) |
 | Ảnh | Coil 3 (KMP) |
-| Video | WebView (Android) / WKWebView (iOS) qua `expect/actual` |
+| Video | Media3 ExoPlayer 1.11.1 (Android) / WKWebView (iOS) qua `expect/actual` |
 | Build | Gradle 9.5.1, AGP 9.1.1 |
+
+> **Cách phát video (Android):** API chỉ trả `link_embed` dạng trang `/video/<hash>`. App đọc
+> trang embed để lấy `signedMasterUrl` (nguồn có signature) hoặc ghép
+> `/stream/<hash>/master.m3u8`, rồi phát bằng ExoPlayer. Các segment thực chất là **PNG bọc
+> payload MPEG-TS**, nên `PngWrappedTsDataSource` tìm và cắt phần PNG trước khi đưa vào
+> `TsExtractor`. iOS giữ WKWebView với trang embed gốc.
 
 ---
 
@@ -158,8 +164,8 @@ Nolelamphim-kotlin/
 ├── shared/                      # Toàn bộ UI + logic dùng chung
 │   └── src/
 │       ├── commonMain/          # UI, ViewModel, Repository, API, model
-│       ├── androidMain/         # actual: OkHttp, WebView, storage...
-│       ├── iosMain/             # actual: Darwin, WKWebView...
+│       ├── androidMain/         # actual: OkHttp, ExoPlayer, storage...
+│       ├── iosMain/             # actual: Darwin, WKWebView, storage...
 │       └── commonTest/          # test chung
 ├── iosApp/                      # Xcode project, Info.plist
 ├── gradle/libs.versions.toml    # Quản lý version thư viện
@@ -325,11 +331,12 @@ Chọn simulator/device trong Xcode và bấm Run. iOS simulator chỉ chạy tr
 - [x] Màn hình Trang chủ (hero + các hàng phim).
 - [x] Màn hình Tìm kiếm + Lọc.
 - [x] Màn hình Chi tiết + danh sách tập/server.
-- [x] Màn hình Xem phim (WebView/WKWebView).
-- [ ] Yêu thích & lịch sử xem (lưu cục bộ).
+- [x] Màn hình Xem phim (HLS native trên Android, WebView dự phòng; WKWebView trên iOS).
+- [x] Yêu thích & lịch sử xem (lưu cục bộ).
 - [x] Dark theme cơ bản, xử lý lỗi/empty state.
 - [x] Test repository với MockEngine.
-- [ ] Pull-to-refresh, cache ảnh/API và tối ưu hiệu năng.
+- [x] Phân trang, pull-to-refresh, phim liên quan, xem tiếp.
+- [ ] Cache ảnh/API và tối ưu hiệu năng.
 
 Hướng dẫn từng bước: [`TUTORIAL.md`](./TUTORIAL.md).
 
