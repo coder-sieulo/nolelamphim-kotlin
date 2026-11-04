@@ -9,13 +9,13 @@
 
 ## 0. Bạn đang có gì?
 
-| Thành phần | Trạng thái |
-|---|---|
-| Khung KMP Android + iOS | Đã có, build được |
-| UI Compose dùng chung | Đã có `App.kt` mẫu |
-| API phim | **Đã có sẵn** (VSMOV public API) |
-| Tầng network/API client | Chưa có — bạn sẽ tự thêm |
-| Các màn hình phim | Chưa có — bạn sẽ tự thêm |
+| Thành phần              | Trạng thái                       |
+| ----------------------- | -------------------------------- |
+| Khung KMP Android + iOS | Đã có, build được                |
+| UI Compose dùng chung   | Đã có `App.kt` mẫu               |
+| API phim                | **Đã có sẵn** (VSMOV public API) |
+| Tầng network/API client | Chưa có — bạn sẽ tự thêm         |
+| Các màn hình phim       | Chưa có — bạn sẽ tự thêm         |
 
 Nguồn API:
 
@@ -30,17 +30,17 @@ Nguồn API:
 
 ### 1.1. Bảng endpoint
 
-| Mục đích | Method + Endpoint | Query params |
-|---|---|---|
-| Phim mới cập nhật | `GET /api/danh-sach/phim-moi-cap-nhat` | `page`, `limit` |
-| Danh sách + lọc | `GET /api/danh-sach` | `category`, `country`, `year`, `page`, `limit` |
-| Theo nhóm phim | `GET /api/danh-sach/{slug}` | `page`, `limit` |
-| Tìm kiếm | `GET /api/tim-kiem` | `keyword`, `page`, `limit` |
-| Danh sách thể loại | `GET /api/the-loai` | — |
-| Danh sách quốc gia | `GET /api/quoc-gia` | — |
-| Phim theo thể loại | `GET /api/the-loai/{slug}` | `page`, `limit` |
-| Phim theo quốc gia | `GET /api/quoc-gia/{slug}` | `page`, `limit` |
-| Chi tiết phim | `GET /api/phim/{slug}` | — |
+| Mục đích           | Method + Endpoint                      | Query params                                   |
+| ------------------ | -------------------------------------- | ---------------------------------------------- |
+| Phim mới cập nhật  | `GET /api/danh-sach/phim-moi-cap-nhat` | `page`, `limit`                                |
+| Danh sách + lọc    | `GET /api/danh-sach`                   | `category`, `country`, `year`, `page`, `limit` |
+| Theo nhóm phim     | `GET /api/danh-sach/{slug}`            | `page`, `limit`                                |
+| Tìm kiếm           | `GET /api/tim-kiem`                    | `keyword`, `page`, `limit`                     |
+| Danh sách thể loại | `GET /api/the-loai`                    | —                                              |
+| Danh sách quốc gia | `GET /api/quoc-gia`                    | —                                              |
+| Phim theo thể loại | `GET /api/the-loai/{slug}`             | `page`, `limit`                                |
+| Phim theo quốc gia | `GET /api/quoc-gia/{slug}`             | `page`, `limit`                                |
+| Chi tiết phim      | `GET /api/phim/{slug}`                 | —                                              |
 
 Các `slug` nhóm đã kiểm chứng:
 

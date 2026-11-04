@@ -6,10 +6,17 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -42,7 +49,12 @@ fun AppNavHost() {
                                 launchSingleTop = true
                             }
                         },
-                        icon = { Text("🏠", fontSize = 20.sp) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = "Trang chủ",
+                            )
+                        },
                         label = { Text("Trang chủ") },
                     )
                     NavigationBarItem(
@@ -54,7 +66,12 @@ fun AppNavHost() {
                                 restoreState = true
                             }
                         },
-                        icon = { Text("🔍", fontSize = 20.sp) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Tìm kiếm",
+                            )
+                        },
                         label = { Text("Tìm kiếm") },
                     )
                 }
