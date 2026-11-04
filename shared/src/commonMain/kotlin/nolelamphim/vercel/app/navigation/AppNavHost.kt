@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
@@ -16,11 +17,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -201,6 +210,26 @@ private fun QuickAccessButton(
     onLibrary: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val idleTransition = rememberInfiniteTransition(label = "quick-access-idle")
+    val idleScale by idleTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.035f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "quick-access-pulse",
+    )
+    val buttonScale by animateFloatAsState(
+        targetValue = if (expanded) 1.08f else idleScale,
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
+        label = "quick-access-scale",
+    )
+    val iconRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(240, easing = FastOutSlowInEasing),
+        label = "quick-access-rotation",
+    )
 
     Box {
         DropdownMenu(
@@ -238,11 +267,20 @@ private fun QuickAccessButton(
             shape = CircleShape,
             containerColor = Color(0xFF2E2E34),
             contentColor = if (currentRoute == Routes.HOME) Color(0xFFF97316) else Color.White,
-            modifier = Modifier.padding(bottom = 8.dp),
+            modifier = Modifier
+                .padding(bottom = 8.dp)
+                .graphicsLayer {
+                    scaleX = buttonScale
+                    scaleY = buttonScale
+                    rotationZ = iconRotation * 0.08f
+                },
         ) {
             Icon(
-                imageVector = Icons.Default.Menu,
+                imageVector = if (expanded) Icons.Default.Close else Icons.Default.Menu,
                 contentDescription = "Mở điều hướng",
+                modifier = Modifier.graphicsLayer {
+                    rotationZ = iconRotation
+                },
             )
         }
     }
