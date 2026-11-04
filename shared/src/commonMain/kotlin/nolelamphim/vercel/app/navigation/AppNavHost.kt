@@ -1,7 +1,13 @@
 package nolelamphim.vercel.app.navigation
 
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Home
@@ -10,9 +16,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
@@ -43,60 +50,70 @@ fun AppNavHost() {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp,
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.HOME,
-                        onClick = {
-                            navController.navigate(Routes.HOME) {
-                                popUpTo(Routes.HOME) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Trang chủ",
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 360.dp)
+                            .height(64.dp),
+                        shape = RoundedCornerShape(32.dp),
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 6.dp,
+                    ) {
+                        NavigationBar(
+                            modifier = Modifier.fillMaxSize(),
+                            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            tonalElevation = 0.dp,
+                        ) {
+                            NavigationBarItem(
+                                selected = currentRoute == Routes.HOME,
+                                onClick = {
+                                    navController.navigate(Routes.HOME) {
+                                        popUpTo(Routes.HOME) { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                },
+                                icon = {
+                                    Icon(Icons.Default.Home, contentDescription = "Trang chủ")
+                                },
+                                alwaysShowLabel = false,
                             )
-                        },
-                        label = { Text("Trang chủ") },
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.SEARCH,
-                        onClick = {
-                            navController.navigate(Routes.SEARCH) {
-                                popUpTo(Routes.HOME) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Tìm kiếm",
+                            NavigationBarItem(
+                                selected = currentRoute == Routes.SEARCH,
+                                onClick = {
+                                    navController.navigate(Routes.SEARCH) {
+                                        popUpTo(Routes.HOME) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = {
+                                    Icon(Icons.Default.Search, contentDescription = "Tìm kiếm")
+                                },
+                                alwaysShowLabel = false,
                             )
-                        },
-                        label = { Text("Tìm kiếm") },
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.LIBRARY,
-                        onClick = {
-                            navController.navigate(Routes.LIBRARY) {
-                                popUpTo(Routes.HOME) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.Bookmark,
-                                contentDescription = "Thư viện",
+                            NavigationBarItem(
+                                selected = currentRoute == Routes.LIBRARY,
+                                onClick = {
+                                    navController.navigate(Routes.LIBRARY) {
+                                        popUpTo(Routes.HOME) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = {
+                                    Icon(Icons.Default.Bookmark, contentDescription = "Thư viện")
+                                },
+                                alwaysShowLabel = false,
                             )
-                        },
-                        label = { Text("Thư viện") },
-                    )
+                        }
+                    }
                 }
             }
         },
