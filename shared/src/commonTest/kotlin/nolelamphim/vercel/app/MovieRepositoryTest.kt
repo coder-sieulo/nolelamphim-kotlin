@@ -135,4 +135,53 @@ class MovieRepositoryTest {
         val related = repository.relatedMovies("current", "phim-bo")
         assertEquals(listOf("related"), related.map { it.slug })
     }
+
+    @Test
+    fun resolveStreamUrl_usesSignedPlaylistFromEmbedPage() = runTest {
+        var requestedUrl = ""
+
+        val engine = MockEngine { request ->
+            requestedUrl = request.url.toString()
+            respond(
+                content = """
+                    const playerOptions = {
+                        signedMasterUrl: "https://v2.streamvsmov.com/stream/abc/master.m3u8?expires=1&signature=xyz",
+                    };
+                """.trimIndent(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "text/html"),
+            )
+        }
+
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) { json(appJson) }
+        }
+        val repository = MovieRepository(MovieApi(client))
+
+        val streamUrl = repository.resolveStreamUrl("https://v2.streamvsmov.com/video/abc")
+        assertEquals(
+            "https://v2.streamvsmov.com/stream/abc/master.m3u8?expires=1&signature=xyz",
+            streamUrl,
+        )
+        assertTrue(requestedUrl.startsWith("https://v2.streamvsmov.com/video/abc"))
+    }
+
+    @Test
+    fun resolveStreamUrl_fallsBackToDerivedPlaylistWithoutSignature() = runTest {
+        val engine = MockEngine {
+            respond(
+                content = """signedMasterUrl: "",""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "text/html"),
+            )
+        }
+        val repository = MovieRepository(
+            MovieApi(HttpClient(engine) { install(ContentNegotiation) { json(appJson) } }),
+        )
+
+        assertEquals(
+            "https://v10.streamvsmov.com/stream/abc/master.m3u8",
+            repository.resolveStreamUrl("https://v10.streamvsmov.com/video/abc"),
+        )
+    }
 }
