@@ -153,8 +153,8 @@ private fun HomeIntro(onLatestClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(138.dp)
-            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+            .height(96.dp)
+            .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
             .background(
                 Brush.horizontalGradient(
                     colors = listOf(
@@ -182,13 +182,13 @@ private fun HomeIntro(onLatestClick: () -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 20.dp, end = 12.dp),
+                .padding(start = 16.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .width(4.dp)
-                    .height(62.dp)
+                    .width(3.dp)
+                    .height(48.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .background(
                         Brush.verticalGradient(
@@ -199,8 +199,8 @@ private fun HomeIntro(onLatestClick: () -> Unit) {
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                    .padding(start = 11.dp),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
             ) {
                 Text(
                     text = "NÔ LỆ LÀM PHIM",
@@ -209,17 +209,20 @@ private fun HomeIntro(onLatestClick: () -> Unit) {
                 )
                 Text(
                     text = "Chọn phim cho tối nay",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     color = Color.White,
                 )
                 Text(
                     text = "Những câu chuyện đáng để ngồi lại",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = Color.White.copy(alpha = 0.68f),
                 )
             }
             TextButton(onClick = onLatestClick) {
-                Text("Mới nhất")
+                Text(
+                    text = "Mới nhất",
+                    style = MaterialTheme.typography.labelSmall,
+                )
             }
         }
     }
