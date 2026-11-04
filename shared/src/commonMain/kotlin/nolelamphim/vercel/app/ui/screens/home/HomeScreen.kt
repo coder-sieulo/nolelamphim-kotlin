@@ -1,12 +1,22 @@
 package nolelamphim.vercel.app.ui.screens.home
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +27,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -67,27 +82,7 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Nô Lệ Làm Phim",
-                                style = MaterialTheme.typography.headlineSmall,
-                            )
-                            Text(
-                                text = "Chọn một bộ phim cho tối nay",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        TextButton(onClick = { onSeeAll(CatalogType.LATEST) }) {
-                            Text("Mới nhất")
-                        }
-                    }
+                    HomeIntro(onLatestClick = { onSeeAll(CatalogType.LATEST) })
                 }
                 state.hero?.let { hero ->
                     item {
@@ -137,6 +132,94 @@ fun HomeScreen(
                         onSeeAll = { onSeeAll(CatalogType.CINEMA) },
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeIntro(onLatestClick: () -> Unit) {
+    val transition = rememberInfiniteTransition(label = "home-intro")
+    val lightOffset by transition.animateFloat(
+        initialValue = -260f,
+        targetValue = 620f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "home-intro-light",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(138.dp)
+            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+            .background(
+                Brush.horizontalGradient(
+                    colors = listOf(
+                        Color(0xFFF97316).copy(alpha = 0.18f),
+                        Color(0xFF26262B).copy(alpha = 0.92f),
+                        Color(0xFF1B1B1F),
+                    ),
+                ),
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { translationX = lightOffset }
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.White.copy(alpha = 0.08f),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 20.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(62.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFFF97316), Color(0xFFFB923C).copy(alpha = 0.2f)),
+                        ),
+                    ),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text(
+                    text = "NÔ LỆ LÀM PHIM",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFFB923C),
+                )
+                Text(
+                    text = "Chọn phim cho tối nay",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                )
+                Text(
+                    text = "Những câu chuyện đáng để ngồi lại",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.68f),
+                )
+            }
+            TextButton(onClick = onLatestClick) {
+                Text("Mới nhất")
             }
         }
     }
