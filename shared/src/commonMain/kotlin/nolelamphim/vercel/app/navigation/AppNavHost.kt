@@ -1,8 +1,15 @@
 package nolelamphim.vercel.app.navigation
 
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
@@ -10,11 +17,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -232,56 +236,49 @@ private fun QuickAccessButton(
     )
 
     Box {
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
+        Column(
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            DropdownMenuItem(
-                text = { Text("Trang chủ") },
-                leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onHome()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("Tìm kiếm") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onSearch()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("Thư viện") },
-                leadingIcon = { Icon(Icons.Default.Bookmark, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onLibrary()
-                },
-            )
-        }
-
-        FloatingActionButton(
-            onClick = { expanded = !expanded },
-            shape = CircleShape,
-            containerColor = Color(0xFF2E2E34),
-            contentColor = if (currentRoute == Routes.HOME) Color(0xFFF97316) else Color.White,
-            modifier = Modifier
-                .padding(bottom = 8.dp)
-                .graphicsLayer {
-                    scaleX = buttonScale
-                    scaleY = buttonScale
-                    rotationZ = iconRotation * 0.08f
-                },
-        ) {
-            Icon(
-                imageVector = if (expanded) Icons.Default.Close else Icons.Default.Menu,
-                contentDescription = "Mở điều hướng",
-                modifier = Modifier.graphicsLayer {
-                    rotationZ = iconRotation
-                },
-            )
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn(tween(160)) + expandVertically(tween(220)),
+                exit = fadeOut(tween(120)) + shrinkVertically(tween(180)),
+            ) {
+                Column(
+                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    IconButton(onClick = { expanded = false; onHome() }) {
+                        Icon(Icons.Default.Home, contentDescription = "Trang chủ")
+                    }
+                    IconButton(onClick = { expanded = false; onSearch() }) {
+                        Icon(Icons.Default.Search, contentDescription = "Tìm kiếm")
+                    }
+                    IconButton(onClick = { expanded = false; onLibrary() }) {
+                        Icon(Icons.Default.Bookmark, contentDescription = "Thư viện")
+                    }
+                }
+            }
+            IconButton(
+                onClick = { expanded = !expanded },
+                modifier = Modifier
+                    .padding(bottom = 8.dp)
+                    .graphicsLayer {
+                        scaleX = buttonScale
+                        scaleY = buttonScale
+                        rotationZ = iconRotation * 0.08f
+                    },
+            ) {
+                Icon(
+                    imageVector = if (expanded) Icons.Default.Close else Icons.Default.Menu,
+                    contentDescription = "Mở điều hướng",
+                    tint = if (currentRoute == Routes.HOME) Color(0xFFF97316) else Color.White,
+                    modifier = Modifier.graphicsLayer {
+                        rotationZ = iconRotation
+                    },
+                )
+            }
         }
     }
 }
