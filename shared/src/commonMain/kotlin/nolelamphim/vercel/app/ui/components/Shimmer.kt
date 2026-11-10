@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -83,6 +84,7 @@ fun HomeSkeletonScreen(modifier: Modifier = Modifier) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -198,14 +200,26 @@ fun DetailSkeletonScreen(modifier: Modifier = Modifier) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (isTv) 420.dp else 360.dp)
+                    .height(if (isTv) 420.dp else 410.dp)
                     .shimmerEffect(RoundedCornerShape(0.dp)),
             ) {
+                // Top Action Buttons Skeleton
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Box(modifier = Modifier.size(42.dp).shimmerEffect(CircleShape))
+                    Box(modifier = Modifier.size(42.dp).shimmerEffect(CircleShape))
+                }
+
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(horizontal = 20.dp, vertical = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Box(modifier = Modifier.width(280.dp).height(32.dp).shimmerEffect(RoundedCornerShape(6.dp)))
                     Box(modifier = Modifier.width(160.dp).height(16.dp).shimmerEffect(RoundedCornerShape(4.dp)))

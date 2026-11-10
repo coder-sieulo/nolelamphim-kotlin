@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -207,7 +208,7 @@ private fun MobileDetailHeader(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(380.dp),
+            .height(410.dp),
     ) {
         // Backdrop poster
         AsyncImage(
@@ -223,7 +224,7 @@ private fun MobileDetailHeader(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0f to Color.Black.copy(alpha = 0.7f),
+                        0f to Color.Black.copy(alpha = 0.75f),
                         0.25f to Color.Transparent,
                         0.55f to Color.Black.copy(alpha = 0.5f),
                         0.85f to CinemaColors.Background.copy(alpha = 0.95f),
@@ -232,11 +233,12 @@ private fun MobileDetailHeader(
                 ),
         )
 
-        // Top action bar (Back, Favorite)
+        // Top action bar (Back, Favorite) safely below tai thỏ / Dynamic Island
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
