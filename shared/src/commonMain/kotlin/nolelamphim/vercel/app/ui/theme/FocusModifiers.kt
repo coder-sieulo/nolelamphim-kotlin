@@ -104,3 +104,32 @@ fun Modifier.cinemaFocusable(
             }
         )
 }
+
+/**
+ * Smooth spring-like scale bounce on touch press for Mobile/Desktop cards
+ */
+@Composable
+fun Modifier.bounceClick(
+    scaleDown: Float = 0.96f,
+    onClick: () -> Unit,
+): Modifier {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) scaleDown else 1f,
+        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+        label = "bounce-scale",
+    )
+    val interactionSource = remember { MutableInteractionSource() }
+
+    return this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick,
+        )
+}
+

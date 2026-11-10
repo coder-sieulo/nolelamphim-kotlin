@@ -207,3 +207,88 @@ fun TopRankingRow(
         }
     }
 }
+
+/**
+ * 16:9 Landscape Backdrop Movie Row for high-impact scene shots
+ */
+@Composable
+fun BackdropMovieRow(
+    title: String,
+    movies: List<Movie>,
+    onMovieClick: (Movie) -> Unit,
+    modifier: Modifier = Modifier,
+    onSeeAll: (() -> Unit)? = null,
+) {
+    if (movies.isEmpty()) return
+
+    val isTv = LocalIsTv.current
+    val listState = rememberLazyListState()
+    val cardWidth = if (isTv) 260.dp else 210.dp
+    val horizontalPadding = if (isTv) 24.dp else 16.dp
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(18.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(CinemaColors.NeonCyan),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = CinemaColors.TextPrimary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            if (onSeeAll != null) {
+                Row(
+                    modifier = Modifier
+                        .cinemaFocusable(
+                            onClick = onSeeAll,
+                            shape = RoundedCornerShape(8.dp),
+                            scaleFocused = 1.05f,
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Xem tất cả",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = CinemaColors.NeonCyan,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Icon(
+                        imageVector = Icons.Default.ArrowForward,
+                        contentDescription = "Xem tất cả",
+                        tint = CinemaColors.NeonCyan,
+                        modifier = Modifier.size(15.dp),
+                    )
+                }
+            }
+        }
+
+        LazyRow(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = horizontalPadding),
+            horizontalArrangement = Arrangement.spacedBy(if (isTv) 16.dp else 12.dp),
+        ) {
+            items(movies, key = { it.id }) { movie ->
+                BackdropMovieCard(
+                    movie = movie,
+                    onClick = { onMovieClick(movie) },
+                    modifier = Modifier.width(cardWidth),
+                )
+            }
+        }
+    }
+}
+

@@ -65,7 +65,7 @@ fun HeroBannerCarousel(
     val isTv = LocalIsTv.current
     val featuredMovies = movies.take(6)
     val pagerState = rememberPagerState(pageCount = { featuredMovies.size })
-    val bannerHeight = if (isTv) 460.dp else 400.dp
+    val bannerHeight = if (isTv) 480.dp else 450.dp
     val bannerShape = if (isTv) RoundedCornerShape(20.dp) else RoundedCornerShape(0.dp)
 
     // Auto-scroll effect
@@ -247,9 +247,7 @@ fun HeroBannerCarousel(
                             onClick = { onMovieClick(movie) },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                             shape = RoundedCornerShape(12.dp),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = androidx.compose.ui.graphics.SolidColor(Color.White.copy(alpha = 0.25f)),
-                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
                             modifier = Modifier
                                 .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
                                 .cinemaFocusable(

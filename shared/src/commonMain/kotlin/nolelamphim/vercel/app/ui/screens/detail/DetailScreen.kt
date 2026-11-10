@@ -1,5 +1,10 @@
 package nolelamphim.vercel.app.ui.screens.detail
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +20,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -23,6 +29,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -119,79 +129,178 @@ private fun DetailContent(
 ) {
     val isTv = LocalIsTv.current
     var selectedServerIndex by remember { mutableIntStateOf(0) }
+    val listState = rememberLazyListState()
+    val showStickyBar by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 300 }
+    }
 
-    LazyColumn(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(CinemaColors.Background),
-        contentPadding = PaddingValues(bottom = if (isTv) 32.dp else 80.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        // Hero / Header Section
-        item {
-            if (isTv) {
-                TvDetailHeader(
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = if (isTv) 32.dp else 96.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            // Hero / Header Section
+            item {
+                if (isTv) {
+                    TvDetailHeader(
+                        movie = movie,
+                        isFavorite = isFavorite,
+                        onBack = onBack,
+                        onPlayFirst = { onPlay(movie.slug, 0, 0) },
+                        onToggleFavorite = onToggleFavorite,
+                    )
+                } else {
+                    MobileDetailHeader(
+                        movie = movie,
+                        isFavorite = isFavorite,
+                        onBack = onBack,
+                        onPlayFirst = { onPlay(movie.slug, selectedServerIndex, 0) },
+                        onToggleFavorite = onToggleFavorite,
+                    )
+                }
+            }
+
+            // Synopsis Section
+            if (movie.description.isNotBlank()) {
+                item {
+                    Column(
+                        modifier = Modifier.padding(horizontal = if (isTv) 32.dp else 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SectionTitle(title = "Nội dung phim")
+                        Text(
+                            text = movie.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = CinemaColors.TextSecondary,
+                            lineHeight = 22.sp,
+                        )
+                    }
+                }
+            }
+
+            // Metadata grid (Directors, Actors, Country)
+            item {
+                MetadataSection(movie = movie, isTv = isTv)
+            }
+
+            // Episodes Selector
+            item {
+                EpisodeSelectorSection(
                     movie = movie,
-                    isFavorite = isFavorite,
-                    onBack = onBack,
-                    onPlayFirst = { onPlay(movie.slug, 0, 0) },
-                    onToggleFavorite = onToggleFavorite,
-                )
-            } else {
-                MobileDetailHeader(
-                    movie = movie,
-                    isFavorite = isFavorite,
-                    onBack = onBack,
-                    onPlayFirst = { onPlay(movie.slug, 0, 0) },
-                    onToggleFavorite = onToggleFavorite,
+                    selectedServerIndex = selectedServerIndex,
+                    onSelectServer = { selectedServerIndex = it },
+                    onSelectEpisode = { serverIdx, epIdx ->
+                        onPlay(movie.slug, serverIdx, epIdx)
+                    },
+                    isTv = isTv,
                 )
             }
-        }
 
-        // Synopsis Section
-        if (movie.description.isNotBlank()) {
-            item {
-                Column(
-                    modifier = Modifier.padding(horizontal = if (isTv) 32.dp else 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    SectionTitle(title = "Nội dung phim")
-                    Text(
-                        text = movie.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = CinemaColors.TextSecondary,
-                        lineHeight = 22.sp,
+            // Related Movies
+            if (related.isNotEmpty()) {
+                item {
+                    MovieRow(
+                        title = "Có thể bạn muốn xem",
+                        movies = related,
+                        onMovieClick = { onMovieClick(it.slug) },
                     )
                 }
             }
         }
 
-        // Metadata grid (Directors, Actors, Country)
-        item {
-            MetadataSection(movie = movie, isTv = isTv)
-        }
-
-        // Episodes Selector
-        item {
-            EpisodeSelectorSection(
-                movie = movie,
-                selectedServerIndex = selectedServerIndex,
-                onSelectServer = { selectedServerIndex = it },
-                onSelectEpisode = { serverIdx, epIdx ->
-                    onPlay(movie.slug, serverIdx, epIdx)
-                },
-                isTv = isTv,
-            )
-        }
-
-        // Related Movies
-        if (related.isNotEmpty()) {
-            item {
-                MovieRow(
-                    title = "Có thể bạn muốn xem",
-                    movies = related,
-                    onMovieClick = { onMovieClick(it.slug) },
+        // Sticky Bottom Play Bar on Mobile
+        if (!isTv) {
+            AnimatedVisibility(
+                visible = showStickyBar,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                StickyPlayBar(
+                    movie = movie,
+                    onPlay = { onPlay(movie.slug, selectedServerIndex, 0) },
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StickyPlayBar(
+    movie: MovieDetail,
+    onPlay: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFA111118))
+            .drawBehind {
+                drawLine(
+                    color = Color.White.copy(alpha = 0.12f),
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                AsyncImage(
+                    model = movie.posterUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(width = 34.dp, height = 46.dp)
+                        .clip(RoundedCornerShape(6.dp)),
+                )
+                Column {
+                    Text(
+                        text = movie.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = CinemaColors.TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = movie.episodeCurrent?.let { "Đang phát: $it" } ?: "Bấm xem ngay",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CinemaColors.Primary,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                }
+            }
+
+            Button(
+                onClick = onPlay,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = CinemaColors.Primary,
+                    contentColor = Color.White,
+                ),
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Xem ngay", fontWeight = FontWeight.Bold)
             }
         }
     }

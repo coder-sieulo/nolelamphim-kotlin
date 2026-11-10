@@ -26,9 +26,21 @@ object CinemaColors {
     val TextMuted = Color(0xFF64748B)
     val BorderSubtle = Color(0x1FFFFFFF)
     val BorderFocus = Color(0xFFF97316)
+    val GlassBorder = Color(0x2EFFFFFF)
+    val GlassBackground = Color(0xD912121A)
+    val NeonCyan = Color(0xFF06B6D4)
+    val NeonEmerald = Color(0xFF10B981)
+    val NeonViolet = Color(0xFF8B5CF6)
+    val NeonRed = Color(0xFFEF4444)
 
     val PrimaryGradient = Brush.horizontalGradient(
         colors = listOf(Color(0xFFFF7A00), Color(0xFFFF4500)),
+    )
+    val AccentGradient = Brush.horizontalGradient(
+        colors = listOf(Color(0xFFF97316), Color(0xFFEC4899)),
+    )
+    val GlassGradient = Brush.verticalGradient(
+        colors = listOf(Color.White.copy(alpha = 0.12f), Color.White.copy(alpha = 0.04f)),
     )
     val PosterOverlayGradient = Brush.verticalGradient(
         colors = listOf(Color.Transparent, Color(0x80000000), Color(0xFA0D0D11)),
