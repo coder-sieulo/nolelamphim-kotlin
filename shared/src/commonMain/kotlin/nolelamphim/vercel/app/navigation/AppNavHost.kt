@@ -1,8 +1,13 @@
 package nolelamphim.vercel.app.navigation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -302,20 +307,20 @@ private fun MobileBottomNav(
     onSearch: () -> Unit,
     onLibrary: () -> Unit,
 ) {
-    val navShape = RoundedCornerShape(26.dp)
+    val navShape = RoundedCornerShape(28.dp)
 
     Box(
         modifier = Modifier
             .shadow(
-                elevation = 20.dp,
+                elevation = 24.dp,
                 shape = navShape,
-                spotColor = Color.Black.copy(alpha = 0.7f),
-                ambientColor = Color.Black.copy(alpha = 0.5f),
+                spotColor = Color.Black.copy(alpha = 0.85f),
+                ambientColor = Color.Black.copy(alpha = 0.6f),
             )
             .clip(navShape)
-            .background(Color(0xF0181822))
-            .border(1.dp, Color.White.copy(alpha = 0.12f), navShape)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .background(Color(0xE614141E))
+            .border(1.dp, Color.White.copy(alpha = 0.14f), navShape)
+            .padding(horizontal = 8.dp, vertical = 7.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -356,14 +361,24 @@ private fun MobileNavItem(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(22.dp)
+    val animatedBg by animateColorAsState(
+        targetValue = if (isSelected) CinemaColors.Primary else Color.Transparent,
+        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+        label = "nav-item-bg",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) Color.White else CinemaColors.TextSecondary,
+        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+        label = "nav-item-color",
+    )
 
     Box(
         modifier = Modifier
             .clip(shape)
-            .background(if (isSelected) CinemaColors.Primary else Color.Transparent)
+            .background(animatedBg)
             .clickable(onClick = onClick)
-            .padding(horizontal = if (isSelected) 14.dp else 12.dp, vertical = 8.dp),
+            .padding(horizontal = if (isSelected) 14.dp else 11.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(
@@ -373,15 +388,20 @@ private fun MobileNavItem(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isSelected) Color.White else CinemaColors.TextSecondary,
+                tint = contentColor,
                 modifier = Modifier.size(20.dp),
             )
-            if (isSelected) {
+            AnimatedVisibility(
+                visible = isSelected,
+                enter = fadeIn() + expandHorizontally(),
+                exit = fadeOut() + shrinkHorizontally(),
+            ) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 1,
                 )
             }
         }

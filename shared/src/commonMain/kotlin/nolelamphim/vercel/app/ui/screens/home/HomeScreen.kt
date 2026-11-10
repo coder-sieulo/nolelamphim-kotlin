@@ -47,8 +47,11 @@ import nolelamphim.vercel.app.ui.components.ContinueWatchingRow
 import nolelamphim.vercel.app.ui.components.EmptyView
 import nolelamphim.vercel.app.ui.components.ErrorView
 import nolelamphim.vercel.app.ui.components.HeroBanner
+import nolelamphim.vercel.app.ui.components.HeroBannerCarousel
+import nolelamphim.vercel.app.ui.components.HomeSkeletonScreen
 import nolelamphim.vercel.app.ui.components.LoadingView
 import nolelamphim.vercel.app.ui.components.MovieRow
+import nolelamphim.vercel.app.ui.components.TopRankingRow
 import nolelamphim.vercel.app.ui.screens.catalog.CatalogType
 import nolelamphim.vercel.app.ui.theme.CinemaColors
 import nolelamphim.vercel.app.ui.theme.LocalIsTv
@@ -71,7 +74,7 @@ fun HomeScreen(
     val isTv = LocalIsTv.current
 
     when {
-        state.isLoading -> LoadingView(message = "Đang tải trang chủ...")
+        state.isLoading -> HomeSkeletonScreen()
 
         state.error != null && state.latest.isEmpty() -> ErrorView(
             message = state.error.orEmpty(),
@@ -93,8 +96,8 @@ fun HomeScreen(
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = if (isTv) 32.dp else 90.dp),
-                verticalArrangement = Arrangement.spacedBy(if (isTv) 20.dp else 16.dp),
+                contentPadding = PaddingValues(bottom = if (isTv) 32.dp else 96.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isTv) 22.dp else 18.dp),
             ) {
                 if (!isTv) {
                     item {
@@ -103,17 +106,26 @@ fun HomeScreen(
                             onFilter = onOpenFilter,
                         )
                     }
+                    item {
+                        QuickCategoryFilterRow(
+                            onSelectCategory = { catalogType ->
+                                onSeeAll(catalogType)
+                            },
+                        )
+                    }
                 } else {
                     item {
                         Spacer(Modifier.height(8.dp))
                     }
                 }
 
-                state.hero?.let { hero ->
+                // Showcase Hero Banner Carousel
+                val heroMovies = (listOfNotNull(state.hero) + state.latest.take(5)).distinctBy { it.id }
+                if (heroMovies.isNotEmpty()) {
                     item {
-                        HeroBanner(
-                            movie = hero,
-                            onClick = { onMovieClick(hero) },
+                        HeroBannerCarousel(
+                            movies = heroMovies,
+                            onMovieClick = onMovieClick,
                         )
                     }
                 }
@@ -123,6 +135,18 @@ fun HomeScreen(
                         ContinueWatchingRow(
                             entries = continueWatching,
                             onEntryClick = onContinueClick,
+                        )
+                    }
+                }
+
+                // Netflix-style Top 10 Ranking Row
+                val topMovies = (if (state.cinema.isNotEmpty()) state.cinema else state.latest).take(10)
+                if (topMovies.isNotEmpty()) {
+                    item {
+                        TopRankingRow(
+                            title = "Top 10 Thịnh Hành",
+                            movies = topMovies,
+                            onMovieClick = onMovieClick,
                         )
                     }
                 }
@@ -162,6 +186,47 @@ fun HomeScreen(
                         onSeeAll = { onSeeAll(CatalogType.CINEMA) },
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickCategoryFilterRow(
+    onSelectCategory: (String) -> Unit,
+) {
+    val categories = listOf(
+        "🔥 Chiếu rạp" to CatalogType.CINEMA,
+        "🍿 Phim bộ" to CatalogType.SERIES,
+        "🎬 Phim lẻ" to CatalogType.SINGLES,
+        "⚡ Mới nhất" to CatalogType.LATEST,
+    )
+
+    androidx.compose.foundation.lazy.LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(categories.size) { index ->
+            val (label, type) = categories[index]
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                    .cinemaFocusable(
+                        onClick = { onSelectCategory(type) },
+                        shape = RoundedCornerShape(20.dp),
+                        scaleFocused = 1.08f,
+                    )
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = CinemaColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }

@@ -66,6 +66,7 @@ import coil3.compose.AsyncImage
 import nolelamphim.vercel.app.di.AppContainer
 import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.model.MovieDetail
+import nolelamphim.vercel.app.ui.components.DetailSkeletonScreen
 import nolelamphim.vercel.app.ui.components.ErrorView
 import nolelamphim.vercel.app.ui.components.LoadingView
 import nolelamphim.vercel.app.ui.components.MovieRow
@@ -86,7 +87,7 @@ fun DetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     when (val s = state) {
-        DetailUiState.Loading -> LoadingView(message = "Đang tải chi tiết phim...")
+        DetailUiState.Loading -> DetailSkeletonScreen()
 
         is DetailUiState.Error -> ErrorView(
             message = s.message,
@@ -206,7 +207,7 @@ private fun MobileDetailHeader(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(340.dp),
+            .height(380.dp),
     ) {
         // Backdrop poster
         AsyncImage(
@@ -216,17 +217,17 @@ private fun MobileDetailHeader(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // Gradient blend
+        // Gradient blend (Top vignette + bottom cinema dark)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.5f),
-                            Color(0x990D0D11),
-                            CinemaColors.Background,
-                        ),
+                        0f to Color.Black.copy(alpha = 0.7f),
+                        0.25f to Color.Transparent,
+                        0.55f to Color.Black.copy(alpha = 0.5f),
+                        0.85f to CinemaColors.Background.copy(alpha = 0.95f),
+                        1f to CinemaColors.Background,
                     ),
                 ),
         )
@@ -235,42 +236,42 @@ private fun MobileDetailHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = onBack, modifier = Modifier.size(42.dp)) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Quay lại",
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }
 
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                IconButton(onClick = onToggleFavorite) {
+                IconButton(onClick = onToggleFavorite, modifier = Modifier.size(42.dp)) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Yêu thích",
                         tint = if (isFavorite) CinemaColors.Primary else Color.White,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }
@@ -281,14 +282,16 @@ private fun MobileDetailHeader(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = movie.name,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 24.sp),
                 color = CinemaColors.TextPrimary,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.Black,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
 
             if (movie.originName.isNotBlank() && movie.originName != movie.name) {
@@ -296,13 +299,15 @@ private fun MobileDetailHeader(
                     text = movie.originName,
                     style = MaterialTheme.typography.bodyMedium,
                     color = CinemaColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
             // Badges row
             BadgeRow(movie = movie)
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
 
             // Big CTA Play button
             Button(
@@ -311,17 +316,17 @@ private fun MobileDetailHeader(
                     containerColor = CinemaColors.Primary,
                     contentColor = Color.White,
                 ),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .cinemaFocusable(onClick = onPlayFirst, shape = RoundedCornerShape(12.dp)),
+                    .height(50.dp)
+                    .cinemaFocusable(onClick = onPlayFirst, shape = RoundedCornerShape(14.dp)),
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
+                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(24.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = "Xem ngay ${movie.episodeCurrent?.let { "· $it" } ?: ""}",
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     fontSize = 15.sp,
                 )
             }
