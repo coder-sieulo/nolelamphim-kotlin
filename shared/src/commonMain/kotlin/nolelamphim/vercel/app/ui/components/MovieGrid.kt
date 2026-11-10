@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import nolelamphim.vercel.app.model.Movie
+import nolelamphim.vercel.app.ui.theme.LocalIsTv
 
 @Composable
 fun MovieGrid(
@@ -19,15 +20,20 @@ fun MovieGrid(
     modifier: Modifier = Modifier,
     onLoadMore: (() -> Unit)? = null,
 ) {
+    val isTv = LocalIsTv.current
+    val minItemSize = if (isTv) 160.dp else 105.dp
+    val spacing = if (isTv) 18.dp else 12.dp
+    val padding = if (isTv) 24.dp else 16.dp
+
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 112.dp),
+        columns = GridCells.Adaptive(minSize = minItemSize),
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(start = padding, end = padding, top = 12.dp, bottom = 32.dp),
+        horizontalArrangement = Arrangement.spacedBy(spacing),
+        verticalArrangement = Arrangement.spacedBy(if (isTv) 22.dp else 16.dp),
     ) {
         itemsIndexed(movies, key = { _, movie -> movie.id }) { index, movie ->
-            if (index == movies.lastIndex && onLoadMore != null) {
+            if (index >= movies.lastIndex - 3 && onLoadMore != null) {
                 LaunchedEffect(index) { onLoadMore() }
             }
             MovieCard(

@@ -29,7 +29,22 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        manifestPlaceholders["appLabel"] = "Nolelamphim"
     }
+
+    flavorDimensions += "platform"
+    productFlavors {
+        create("mobile") {
+            dimension = "platform"
+            manifestPlaceholders["appLabel"] = "Nolelamphim"
+        }
+        create("tv") {
+            dimension = "platform"
+            applicationIdSuffix = ".tv"
+            manifestPlaceholders["appLabel"] = "Nolelamphim TV"
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -42,6 +57,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

@@ -1,0 +1,195 @@
+name: Build Multiplatform (Mobile APK, TV APK, Unsigned IPA)
+
+on:
+  push:
+    branches: [ main, master, feat/** ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_android:
+        description: 'Build Android APKs (Mobile & TV)'
+        required: true
+        type: boolean
+        default: true
+      build_ios:
+        description: 'Build iOS Unsigned IPA'
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =========================================================================
+  # 1. BUILD ANDROID (Mobile APK & Android TV APK)
+  # =========================================================================
+  build-android:
+    name: Build Android (Mobile & TV)
+    if: github.event_name != 'workflow_dispatch' || inputs.build_android == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # Build separate Mobile Release APK
+      - name: Build Android Mobile APK
+        run: ./gradlew :androidApp:assembleMobileRelease --stacktrace
+
+      # Build separate Android TV Release APK
+      - name: Build Android TV APK
+        run: ./gradlew :androidApp:assembleTvRelease --stacktrace
+
+      # Organize output files
+      - name: Prepare APK outputs
+        run: |
+          mkdir -p dist/android
+          
+          # Copy & rename Mobile APK
+          MOBILE_APK=$(find androidApp/build/outputs/apk/mobile/release -name "*.apk" | head -n 1)
+          if [ -f "$MOBILE_APK" ]; then
+            cp "$MOBILE_APK" dist/android/Nolelamphim-Mobile.apk
+            echo "Mobile APK found: $MOBILE_APK -> dist/android/Nolelamphim-Mobile.apk"
+          else
+            echo "Mobile APK not found!" && exit 1
+          fi
+
+          # Copy & rename TV APK
+          TV_APK=$(find androidApp/build/outputs/apk/tv/release -name "*.apk" | head -n 1)
+          if [ -f "$TV_APK" ]; then
+            cp "$TV_APK" dist/android/Nolelamphim-TV.apk
+            echo "TV APK found: $TV_APK -> dist/android/Nolelamphim-TV.apk"
+          else
+            echo "TV APK not found!" && exit 1
+          fi
+
+      # Upload Android Mobile APK as a standalone artifact
+      - name: Upload Android Mobile APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nolelamphim-Android-Mobile-APK
+          path: dist/android/Nolelamphim-Mobile.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      # Upload Android TV APK as a standalone artifact
+      - name: Upload Android TV APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nolelamphim-Android-TV-APK
+          path: dist/android/Nolelamphim-TV.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  # =========================================================================
+  # 2. BUILD IOS (Unsigned IPA)
+  # =========================================================================
+  build-ios:
+    name: Build iOS (Unsigned IPA)
+    if: github.event_name != 'workflow_dispatch' || inputs.build_ios == true
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build Xcode Archive (No Code Signing)
+        run: |
+          xcodebuild -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/iosApp.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
+
+      - name: Package Unsigned IPA
+        run: |
+          mkdir -p dist/ios/Payload
+          cp -r build/iosApp.xcarchive/Products/Applications/iosApp.app dist/ios/Payload/
+          cd dist/ios
+          zip -r -9 Nolelamphim-iOS-unsigned.ipa Payload
+          rm -rf Payload
+          echo "Unsigned IPA created at dist/ios/Nolelamphim-iOS-unsigned.ipa"
+
+      # Upload iOS Unsigned IPA as a standalone artifact
+      - name: Upload iOS Unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nolelamphim-iOS-Unsigned-IPA
+          path: dist/ios/Nolelamphim-iOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+  # =========================================================================
+  # 3. CREATE GITHUB RELEASE (Khi push tag dạng v*)
+  # =========================================================================
+  release:
+    name: Create GitHub Release
+    needs: [build-android, build-ios]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Mobile APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Nolelamphim-Android-Mobile-APK
+          path: release-files/
+
+      - name: Download TV APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Nolelamphim-Android-TV-APK
+          path: release-files/
+
+      - name: Download iOS IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: Nolelamphim-iOS-Unsigned-IPA
+          path: release-files/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-files/*
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true

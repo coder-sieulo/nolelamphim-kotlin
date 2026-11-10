@@ -4,68 +4,131 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-private val CinemaColors = darkColorScheme(
-    primary = Color(0xFFF97316),
+// Pro Cinema Dark Palette
+object CinemaColors {
+    val Background = Color(0xFF0D0D11)
+    val Surface = Color(0xFF16161D)
+    val SurfaceElevated = Color(0xFF21212B)
+    val SurfaceCard = Color(0xFF1B1B24)
+    val Primary = Color(0xFFF97316)
+    val PrimaryVariant = Color(0xFFEA580C)
+    val PrimaryContainer = Color(0xFF431A05)
+    val Gold = Color(0xFFFBBF24)
+    val BlueBadge = Color(0xFF38BDF8)
+    val GreenBadge = Color(0xFF34D399)
+    val TextPrimary = Color(0xFFF8FAFC)
+    val TextSecondary = Color(0xFF94A3B8)
+    val TextMuted = Color(0xFF64748B)
+    val BorderSubtle = Color(0x1FFFFFFF)
+    val BorderFocus = Color(0xFFF97316)
+
+    val PrimaryGradient = Brush.horizontalGradient(
+        colors = listOf(Color(0xFFFF7A00), Color(0xFFFF4500)),
+    )
+    val PosterOverlayGradient = Brush.verticalGradient(
+        colors = listOf(Color.Transparent, Color(0x80000000), Color(0xFA0D0D11)),
+    )
+    val HeroOverlayGradient = Brush.verticalGradient(
+        colors = listOf(
+            Color.Transparent,
+            Color(0x330D0D11),
+            Color(0xCC0D0D11),
+            Color(0xFF0D0D11),
+        ),
+    )
+    val HeroSideGradient = Brush.horizontalGradient(
+        colors = listOf(
+            Color(0xE60D0D11),
+            Color(0x990D0D11),
+            Color.Transparent,
+        ),
+    )
+}
+
+private val DarkColorScheme = darkColorScheme(
+    primary = CinemaColors.Primary,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF7C2D12),
+    primaryContainer = CinemaColors.PrimaryContainer,
     onPrimaryContainer = Color.White,
-    secondary = Color(0xFFB3B3B3),
-    onSecondary = Color(0xFF202024),
-    background = Color(0xFF1B1B1F),
-    onBackground = Color.White,
-    surface = Color(0xFF26262B),
-    onSurface = Color.White,
-    surfaceVariant = Color(0xFF2E2E34),
-    onSurfaceVariant = Color(0xFFB3B3B3),
-    outline = Color(0x1AFFFFFF),
-    outlineVariant = Color(0x29FFFFFF),
+    secondary = CinemaColors.TextSecondary,
+    onSecondary = CinemaColors.Surface,
+    background = CinemaColors.Background,
+    onBackground = CinemaColors.TextPrimary,
+    surface = CinemaColors.Surface,
+    onSurface = CinemaColors.TextPrimary,
+    surfaceVariant = CinemaColors.SurfaceElevated,
+    onSurfaceVariant = CinemaColors.TextSecondary,
+    outline = CinemaColors.BorderSubtle,
+    outlineVariant = Color(0x33FFFFFF),
     error = Color(0xFFEF4444),
 )
 
 private val CinemaTypography = Typography(
     headlineLarge = androidx.compose.ui.text.TextStyle(
-        fontSize = 36.sp,
-        lineHeight = 43.sp,
+        fontSize = 32.sp,
+        lineHeight = 38.sp,
         fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.5).sp,
+    ),
+    headlineMedium = androidx.compose.ui.text.TextStyle(
+        fontSize = 24.sp,
+        lineHeight = 30.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.3).sp,
     ),
     headlineSmall = androidx.compose.ui.text.TextStyle(
-        fontSize = 26.sp,
-        lineHeight = 33.sp,
-        fontWeight = FontWeight.Bold,
-    ),
-    titleLarge = androidx.compose.ui.text.TextStyle(
         fontSize = 20.sp,
-        lineHeight = 27.sp,
+        lineHeight = 26.sp,
         fontWeight = FontWeight.SemiBold,
     ),
-    titleMedium = androidx.compose.ui.text.TextStyle(
+    titleLarge = androidx.compose.ui.text.TextStyle(
         fontSize = 18.sp,
         lineHeight = 24.sp,
         fontWeight = FontWeight.SemiBold,
     ),
+    titleMedium = androidx.compose.ui.text.TextStyle(
+        fontSize = 16.sp,
+        lineHeight = 22.sp,
+        fontWeight = FontWeight.SemiBold,
+    ),
+    titleSmall = androidx.compose.ui.text.TextStyle(
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        fontWeight = FontWeight.SemiBold,
+    ),
     bodyLarge = androidx.compose.ui.text.TextStyle(
         fontSize = 15.sp,
-        lineHeight = 23.sp,
+        lineHeight = 22.sp,
     ),
     bodyMedium = androidx.compose.ui.text.TextStyle(
-        fontSize = 14.sp,
-        lineHeight = 21.sp,
+        fontSize = 13.sp,
+        lineHeight = 19.sp,
+    ),
+    bodySmall = androidx.compose.ui.text.TextStyle(
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+    ),
+    labelMedium = androidx.compose.ui.text.TextStyle(
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        fontWeight = FontWeight.Medium,
     ),
     labelSmall = androidx.compose.ui.text.TextStyle(
-        fontSize = 12.sp,
-        lineHeight = 17.sp,
-        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
+        fontWeight = FontWeight.SemiBold,
     ),
 )
 
 @Composable
 fun CinemaTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = CinemaColors,
+        colorScheme = DarkColorScheme,
         typography = CinemaTypography,
         content = content,
     )
