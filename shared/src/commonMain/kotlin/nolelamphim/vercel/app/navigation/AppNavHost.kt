@@ -52,6 +52,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.savedstate.read
 import nolelamphim.vercel.app.getPlatform
 import nolelamphim.vercel.app.ui.screens.catalog.CatalogScreen
 import nolelamphim.vercel.app.ui.screens.catalog.CatalogType
@@ -182,7 +183,7 @@ fun AppNavHost() {
                         route = Routes.CATALOG,
                         arguments = listOf(navArgument("type") { type = NavType.StringType }),
                     ) { entry ->
-                        val type = entry.arguments?.getString("type") ?: CatalogType.LATEST
+                        val type = entry.arguments?.read { getStringOrNull("type") } ?: CatalogType.LATEST
                         CatalogScreen(
                             type = type,
                             title = CatalogType.titleOf(type),
@@ -208,7 +209,7 @@ fun AppNavHost() {
                             navArgument("slug") { type = NavType.StringType },
                         ),
                     ) { entry ->
-                        val slug = entry.arguments?.getString("slug") ?: return@composable
+                        val slug = entry.arguments?.read { getStringOrNull("slug") } ?: return@composable
                         DetailScreen(
                             slug = slug,
                             onBack = { navController.popBackStack() },
@@ -231,9 +232,9 @@ fun AppNavHost() {
                             navArgument("episode") { type = NavType.IntType },
                         ),
                     ) { entry ->
-                        val slug = entry.arguments?.getString("slug") ?: return@composable
-                        val server = entry.arguments?.getInt("server") ?: 0
-                        val episode = entry.arguments?.getInt("episode") ?: 0
+                        val slug = entry.arguments?.read { getStringOrNull("slug") } ?: return@composable
+                        val server = entry.arguments?.read { getIntOrNull("server") } ?: 0
+                        val episode = entry.arguments?.read { getIntOrNull("episode") } ?: 0
                         WatchScreen(
                             slug = slug,
                             serverIndex = server,
