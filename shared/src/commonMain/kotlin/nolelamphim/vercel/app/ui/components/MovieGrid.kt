@@ -28,7 +28,7 @@ fun MovieGrid(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = minItemSize),
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(start = padding, end = padding, top = 12.dp, bottom = 32.dp),
+        contentPadding = PaddingValues(start = padding, end = padding, top = 12.dp, bottom = if (isTv) 32.dp else 84.dp),
         horizontalArrangement = Arrangement.spacedBy(spacing),
         verticalArrangement = Arrangement.spacedBy(if (isTv) 22.dp else 16.dp),
     ) {

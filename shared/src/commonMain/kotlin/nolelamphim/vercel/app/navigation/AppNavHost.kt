@@ -255,13 +255,12 @@ fun AppNavHost() {
                 }
             }
 
-            // Mobile Floating Translucent Bottom Navigation Bar
+            // Mobile Fixed Bottom Navigation Bar
             if (!isTv && isTopLevelRoute) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 16.dp),
+                        .fillMaxWidth(),
                 ) {
                     MobileBottomNav(
                         currentRoute = currentRoute,
@@ -307,48 +306,53 @@ private fun MobileBottomNav(
     onSearch: () -> Unit,
     onLibrary: () -> Unit,
 ) {
-    val navShape = RoundedCornerShape(28.dp)
-
-    Box(
+    Column(
         modifier = Modifier
-            .shadow(
-                elevation = 24.dp,
-                shape = navShape,
-                spotColor = Color.Black.copy(alpha = 0.85f),
-                ambientColor = Color.Black.copy(alpha = 0.6f),
-            )
-            .clip(navShape)
-            .background(Color(0xE614141E))
-            .border(1.dp, Color.White.copy(alpha = 0.14f), navShape)
-            .padding(horizontal = 8.dp, vertical = 7.dp),
+            .fillMaxWidth()
+            .background(Color(0xF7101016)),
     ) {
+        // Thin top divider line
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(0.5.dp)
+                .background(Color.White.copy(alpha = 0.12f)),
+        )
+
         Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .height(54.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             MobileNavItem(
                 icon = Icons.Default.Home,
                 label = "Trang chủ",
                 isSelected = currentRoute == Routes.HOME,
                 onClick = onHome,
+                modifier = Modifier.weight(1f),
             )
             MobileNavItem(
                 icon = Icons.Default.Tune,
                 label = "Bộ lọc",
                 isSelected = currentRoute == Routes.FILTER,
                 onClick = onFilter,
+                modifier = Modifier.weight(1f),
             )
             MobileNavItem(
                 icon = Icons.Default.Search,
                 label = "Tìm kiếm",
                 isSelected = currentRoute == Routes.SEARCH,
                 onClick = onSearch,
+                modifier = Modifier.weight(1f),
             )
             MobileNavItem(
                 icon = Icons.Default.Bookmark,
                 label = "Thư viện",
                 isSelected = currentRoute == Routes.LIBRARY,
                 onClick = onLibrary,
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -360,50 +364,38 @@ private fun MobileNavItem(
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(22.dp)
-    val animatedBg by animateColorAsState(
-        targetValue = if (isSelected) CinemaColors.Primary else Color.Transparent,
-        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-        label = "nav-item-bg",
-    )
-    val contentColor by animateColorAsState(
-        targetValue = if (isSelected) Color.White else CinemaColors.TextSecondary,
-        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+    val activeColor by animateColorAsState(
+        targetValue = if (isSelected) CinemaColors.Primary else Color(0xFF8E8E98),
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
         label = "nav-item-color",
     )
 
     Box(
-        modifier = Modifier
-            .clip(shape)
-            .background(animatedBg)
-            .clickable(onClick = onClick)
-            .padding(horizontal = if (isSelected) 14.dp else 11.dp, vertical = 8.dp),
+        modifier = modifier
+            .fillMaxHeight()
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = contentColor,
-                modifier = Modifier.size(20.dp),
+                tint = activeColor,
+                modifier = Modifier.size(22.dp),
             )
-            AnimatedVisibility(
-                visible = isSelected,
-                enter = fadeIn() + expandHorizontally(),
-                exit = fadeOut() + shrinkHorizontally(),
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-            }
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                color = activeColor,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+            )
         }
     }
 }
