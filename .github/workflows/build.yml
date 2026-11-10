@@ -146,7 +146,15 @@ jobs:
       - name: Package Unsigned IPA
         run: |
           mkdir -p dist/ios/Payload
-          cp -r build/iosApp.xcarchive/Products/Applications/iosApp.app dist/ios/Payload/
+          APP_PATH=$(find build/iosApp.xcarchive/Products/Applications -name "*.app" -maxdepth 1 | head -n 1)
+          if [ -d "$APP_PATH" ]; then
+            echo "Found app bundle: $APP_PATH"
+            cp -r "$APP_PATH" dist/ios/Payload/
+          else
+            echo "Error: No .app found in build/iosApp.xcarchive/Products/Applications!"
+            ls -la build/iosApp.xcarchive/Products/Applications/ || true
+            exit 1
+          fi
           cd dist/ios
           zip -r -9 Nolelamphim-iOS-unsigned.ipa Payload
           rm -rf Payload
