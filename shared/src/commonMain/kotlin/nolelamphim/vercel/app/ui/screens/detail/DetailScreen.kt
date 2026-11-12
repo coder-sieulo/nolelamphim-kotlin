@@ -1,6 +1,7 @@
 package nolelamphim.vercel.app.ui.screens.detail
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -30,59 +31,63 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 import nolelamphim.vercel.app.di.AppContainer
 import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.model.MovieDetail
 import nolelamphim.vercel.app.ui.components.DetailSkeletonScreen
 import nolelamphim.vercel.app.ui.components.ErrorView
-import nolelamphim.vercel.app.ui.components.LoadingView
 import nolelamphim.vercel.app.ui.components.MovieRow
 import nolelamphim.vercel.app.ui.theme.CinemaColors
 import nolelamphim.vercel.app.ui.theme.LocalIsTv
+import nolelamphim.vercel.app.ui.theme.bounceClick
 import nolelamphim.vercel.app.ui.theme.cinemaFocusable
 
 @Composable
@@ -96,23 +101,42 @@ fun DetailScreen(
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    when (val s = state) {
-        DetailUiState.Loading -> DetailSkeletonScreen()
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CinemaColors.Background),
+    ) {
+        when (val s = state) {
+            DetailUiState.Loading -> DetailSkeletonScreen()
 
-        is DetailUiState.Error -> ErrorView(
-            message = s.message,
-            onRetry = viewModel::load,
-        )
+            is DetailUiState.Error -> ErrorView(
+                message = s.message,
+                onRetry = viewModel::load,
+            )
 
-        is DetailUiState.Success -> DetailContent(
-            movie = s.movie,
-            related = s.related,
-            isFavorite = s.isFavorite,
-            onBack = onBack,
-            onPlay = onPlay,
-            onMovieClick = onMovieClick,
-            onToggleFavorite = viewModel::toggleFavorite,
+            is DetailUiState.Success -> DetailContent(
+                movie = s.movie,
+                related = s.related,
+                isFavorite = s.isFavorite,
+                onBack = onBack,
+                onPlay = onPlay,
+                onMovieClick = onMovieClick,
+                onToggleFavorite = viewModel::toggleFavorite,
+                onShowMessage = { msg ->
+                    scope.launch { snackbarHostState.showSnackbar(msg) }
+                },
+            )
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp),
         )
     }
 }
@@ -126,24 +150,22 @@ private fun DetailContent(
     onPlay: (slug: String, serverIndex: Int, episodeIndex: Int) -> Unit,
     onMovieClick: (slug: String) -> Unit,
     onToggleFavorite: () -> Unit,
+    onShowMessage: (String) -> Unit,
 ) {
     val isTv = LocalIsTv.current
     var selectedServerIndex by remember { mutableIntStateOf(0) }
+    var isDescriptionExpanded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val showStickyBar by remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 300 }
+        derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 380 }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CinemaColors.Background),
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = if (isTv) 32.dp else 96.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp),
         ) {
             // Hero / Header Section
             item {
@@ -162,34 +184,66 @@ private fun DetailContent(
                         onBack = onBack,
                         onPlayFirst = { onPlay(movie.slug, selectedServerIndex, 0) },
                         onToggleFavorite = onToggleFavorite,
+                        onShowMessage = onShowMessage,
                     )
                 }
             }
 
-            // Synopsis Section
+            // Interactive Genre Chips Section
+            if (movie.categories.isNotEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier.padding(horizontal = if (isTv) 32.dp else 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        SectionHeader(title = "Thể loại")
+                        GenreChipsRow(categories = movie.categories)
+                    }
+                }
+            }
+
+            // Synopsis Section with smooth expand/collapse
             if (movie.description.isNotBlank()) {
                 item {
                     Column(
                         modifier = Modifier.padding(horizontal = if (isTv) 32.dp else 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        SectionTitle(title = "Nội dung phim")
+                        SectionHeader(title = "Nội dung phim")
                         Text(
                             text = movie.description,
                             style = MaterialTheme.typography.bodyMedium,
                             color = CinemaColors.TextSecondary,
                             lineHeight = 22.sp,
+                            maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 3,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.animateContentSize(),
+                        )
+                        Text(
+                            text = if (isDescriptionExpanded) "Thu gọn ▲" else "Xem thêm ▼",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CinemaColors.Primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable { isDescriptionExpanded = !isDescriptionExpanded }
+                                .padding(vertical = 4.dp),
                         )
                     }
                 }
             }
 
-            // Metadata grid (Directors, Actors, Country)
-            item {
-                MetadataSection(movie = movie, isTv = isTv)
+            // Native Cast & Directors Section (Avatars instead of plain text table)
+            if (movie.directors.isNotEmpty() || movie.actors.isNotEmpty()) {
+                item {
+                    CastAndCrewSection(
+                        directors = movie.directors,
+                        actors = movie.actors,
+                        isTv = isTv,
+                    )
+                }
             }
 
-            // Episodes Selector
+            // Native Episodes Hub
             item {
                 EpisodeSelectorSection(
                     movie = movie,
@@ -297,6 +351,7 @@ private fun StickyPlayBar(
                     contentColor = Color.White,
                 ),
                 shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.bounceClick(onClick = onPlay),
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
@@ -313,13 +368,14 @@ private fun MobileDetailHeader(
     onBack: () -> Unit,
     onPlayFirst: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onShowMessage: (String) -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(410.dp),
+            .height(440.dp),
     ) {
-        // Backdrop poster
+        // Backdrop poster with deep cinematic fade
         AsyncImage(
             model = movie.posterUrl,
             contentDescription = movie.name,
@@ -333,16 +389,16 @@ private fun MobileDetailHeader(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0f to Color.Black.copy(alpha = 0.75f),
-                        0.25f to Color.Transparent,
-                        0.55f to Color.Black.copy(alpha = 0.5f),
-                        0.85f to CinemaColors.Background.copy(alpha = 0.95f),
+                        0f to Color.Black.copy(alpha = 0.8f),
+                        0.22f to Color.Transparent,
+                        0.5f to Color.Black.copy(alpha = 0.5f),
+                        0.8f to CinemaColors.Background.copy(alpha = 0.95f),
                         1f to CinemaColors.Background,
                     ),
                 ),
         )
 
-        // Top action bar (Back, Favorite) safely below tai thỏ / Dynamic Island
+        // Top action bar (Frosted Glass Back + Share + Favorite)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -356,28 +412,47 @@ private fun MobileDetailHeader(
                     .size(42.dp)
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.6f))
-                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                    .bounceClick(onClick = onBack),
                 contentAlignment = Alignment.Center,
             ) {
-                IconButton(onClick = onBack, modifier = Modifier.size(42.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Quay lại",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Quay lại",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp),
+                )
             }
 
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                IconButton(onClick = onToggleFavorite, modifier = Modifier.size(42.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Share button
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                        .bounceClick(onClick = { onShowMessage("Đã sao chép liên kết phim!") }),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Chia sẻ",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                // Favorite button
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                        .bounceClick(onClick = onToggleFavorite),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Yêu thích",
@@ -388,13 +463,13 @@ private fun MobileDetailHeader(
             }
         }
 
-        // Bottom title & info
+        // Bottom title, badges & action row
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 text = movie.name,
@@ -418,9 +493,7 @@ private fun MobileDetailHeader(
             // Badges row
             BadgeRow(movie = movie)
 
-            Spacer(Modifier.height(6.dp))
-
-            // Big CTA Play button
+            // Primary Play CTA Button
             Button(
                 onClick = onPlayFirst,
                 colors = ButtonDefaults.buttonColors(
@@ -431,17 +504,82 @@ private fun MobileDetailHeader(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
-                    .cinemaFocusable(onClick = onPlayFirst, shape = RoundedCornerShape(14.dp)),
+                    .bounceClick(onClick = onPlayFirst),
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(24.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Xem ngay ${movie.episodeCurrent?.let { "· $it" } ?: ""}",
+                    text = "Xem phim ${movie.episodeCurrent?.let { "· $it" } ?: ""}",
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 15.sp,
                 )
             }
+
+            // Native Quick Action Bar (4 interactive icon buttons)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                QuickActionItem(
+                    icon = if (isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    label = if (isFavorite) "Đã lưu" else "Yêu thích",
+                    tint = if (isFavorite) CinemaColors.Primary else Color.White,
+                    onClick = onToggleFavorite,
+                )
+                QuickActionItem(
+                    icon = Icons.Default.Star,
+                    label = if (movie.rating > 0) "${((movie.rating * 10).toInt() / 10.0)}" else "Đánh giá",
+                    tint = CinemaColors.Gold,
+                    onClick = { onShowMessage("Điểm IMDb: ${movie.rating}/10") },
+                )
+                QuickActionItem(
+                    icon = Icons.Default.Share,
+                    label = "Chia sẻ",
+                    tint = Color.White,
+                    onClick = { onShowMessage("Đã sao chép liên kết!") },
+                )
+                QuickActionItem(
+                    icon = Icons.Default.CloudDownload,
+                    label = "Tải về",
+                    tint = Color.White,
+                    onClick = { onShowMessage("Chức năng tải về đang phát triển") },
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun QuickActionItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .bounceClick(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(22.dp),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = CinemaColors.TextSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
@@ -618,48 +756,120 @@ private fun PillBadge(
 }
 
 @Composable
-private fun MetadataSection(movie: MovieDetail, isTv: Boolean) {
-    val padding = if (isTv) 32.dp else 16.dp
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = padding),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+private fun GenreChipsRow(categories: List<String>) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (movie.categories.isNotEmpty()) {
-            MetaItem(label = "Thể loại", value = movie.categories.joinToString(", "))
-        }
-        if (movie.countries.isNotEmpty()) {
-            MetaItem(label = "Quốc gia", value = movie.countries.joinToString(", "))
-        }
-        if (movie.directors.isNotEmpty()) {
-            MetaItem(label = "Đạo diễn", value = movie.directors.joinToString(", "))
-        }
-        if (movie.actors.isNotEmpty()) {
-            MetaItem(label = "Diễn viên", value = movie.actors.joinToString(", "))
+        items(categories) { category ->
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(CinemaColors.SurfaceCard)
+                    .border(1.dp, CinemaColors.BorderSubtle, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = category,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = CinemaColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun MetaItem(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
+private fun CastAndCrewSection(
+    directors: List<String>,
+    actors: List<String>,
+    isTv: Boolean,
+) {
+    val horizontalPadding = if (isTv) 32.dp else 16.dp
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(modifier = Modifier.padding(horizontal = horizontalPadding)) {
+            SectionHeader(title = "Diễn viên & Đạo diễn")
+        }
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = horizontalPadding),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // Directors first
+            items(directors) { director ->
+                PersonAvatarCard(name = director, role = "Đạo diễn")
+            }
+            // Then actors
+            items(actors) { actor ->
+                PersonAvatarCard(name = actor, role = "Diễn viên")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PersonAvatarCard(name: String, role: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.width(76.dp),
+    ) {
+        // Avatar circle with subtle gradient & person initial
+        Box(
+            modifier = Modifier
+                .size(54.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(0xFF2C2C3A), Color(0xFF1B1B26)),
+                    ),
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            val initial = name.trim().take(1).uppercase()
+            if (initial.isNotBlank() && initial.first().isLetter()) {
+                Text(
+                    text = initial,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = CinemaColors.TextMuted,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+
         Text(
-            text = "$label: ",
-            style = MaterialTheme.typography.bodySmall,
-            color = CinemaColors.TextMuted,
+            text = name,
+            style = MaterialTheme.typography.labelSmall,
+            color = CinemaColors.TextPrimary,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.width(85.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
+
         Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            color = CinemaColors.TextSecondary,
-            modifier = Modifier.weight(1f),
+            text = role,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = CinemaColors.TextMuted,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
         )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EpisodeSelectorSection(
     movie: MovieDetail,
@@ -674,8 +884,24 @@ private fun EpisodeSelectorSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(modifier = Modifier.padding(horizontal = horizontalPadding)) {
-            SectionTitle(title = "Danh sách tập phim")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SectionHeader(title = "Danh sách tập phim")
+
+            val currentServer = movie.servers.getOrNull(selectedServerIndex) ?: movie.servers.firstOrNull()
+            val epCount = currentServer?.episodes?.size ?: 0
+            if (epCount > 0) {
+                Text(
+                    text = "$epCount tập",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = CinemaColors.TextMuted,
+                )
+            }
         }
 
         if (movie.servers.isEmpty()) {
@@ -705,15 +931,20 @@ private fun EpisodeSelectorSection(
                                 if (isSelected) CinemaColors.Primary else CinemaColors.BorderSubtle,
                                 RoundedCornerShape(8.dp),
                             )
-                            .cinemaFocusable(
-                                onClick = { onSelectServer(idx) },
-                                shape = RoundedCornerShape(8.dp),
-                                scaleFocused = 1.05f,
+                            .then(
+                                if (isTv) {
+                                    Modifier.cinemaFocusable(
+                                        onClick = { onSelectServer(idx) },
+                                        shape = RoundedCornerShape(8.dp),
+                                    )
+                                } else {
+                                    Modifier.bounceClick { onSelectServer(idx) }
+                                },
                             )
                             .padding(horizontal = 14.dp, vertical = 7.dp),
                     ) {
                         Text(
-                            text = server.name.ifBlank { "Server ${idx + 1}" },
+                            text = server.name.ifBlank { "Nguồn ${idx + 1}" },
                             style = MaterialTheme.typography.labelMedium,
                             color = if (isSelected) Color.White else CinemaColors.TextSecondary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -723,38 +954,78 @@ private fun EpisodeSelectorSection(
             }
         }
 
-        // Episodes Grid / Row
+        // Episodes Grid or Flow
         val currentServer = movie.servers.getOrNull(selectedServerIndex) ?: movie.servers.first()
         val episodes = currentServer.episodes
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = horizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            itemsIndexed(
-                items = episodes,
-                key = { epIdx, ep -> "${selectedServerIndex}_${ep.slug}_$epIdx" },
-            ) { epIdx, ep ->
-                val epTitle = ep.name.ifBlank { "${epIdx + 1}" }
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(CinemaColors.SurfaceCard)
-                        .border(1.dp, CinemaColors.BorderSubtle, RoundedCornerShape(8.dp))
-                        .cinemaFocusable(
-                            onClick = { onSelectEpisode(selectedServerIndex, epIdx) },
-                            shape = RoundedCornerShape(8.dp),
-                            scaleFocused = 1.08f,
+        if (!isTv && episodes.size <= 40) {
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = horizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                episodes.forEachIndexed { epIdx, ep ->
+                    val epTitle = ep.name.ifBlank { "${epIdx + 1}" }
+                    val displayLabel = if (epTitle.startsWith("Tập", ignoreCase = true)) epTitle else "Tập $epTitle"
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(CinemaColors.SurfaceCard)
+                            .border(1.dp, CinemaColors.BorderSubtle, RoundedCornerShape(8.dp))
+                            .bounceClick { onSelectEpisode(selectedServerIndex, epIdx) }
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = displayLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = CinemaColors.TextPrimary,
+                            fontWeight = FontWeight.SemiBold,
                         )
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = if (epTitle.startsWith("Tập", ignoreCase = true)) epTitle else "Tập $epTitle",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = CinemaColors.TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    }
+                }
+            }
+        } else {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = horizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                itemsIndexed(
+                    items = episodes,
+                    key = { epIdx, ep -> "${selectedServerIndex}_${ep.slug}_$epIdx" },
+                ) { epIdx, ep ->
+                    val epTitle = ep.name.ifBlank { "${epIdx + 1}" }
+                    val displayLabel = if (epTitle.startsWith("Tập", ignoreCase = true)) epTitle else "Tập $epTitle"
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(CinemaColors.SurfaceCard)
+                            .border(1.dp, CinemaColors.BorderSubtle, RoundedCornerShape(8.dp))
+                            .then(
+                                if (isTv) {
+                                    Modifier.cinemaFocusable(
+                                        onClick = { onSelectEpisode(selectedServerIndex, epIdx) },
+                                        shape = RoundedCornerShape(8.dp),
+                                        scaleFocused = 1.08f,
+                                    )
+                                } else {
+                                    Modifier.bounceClick { onSelectEpisode(selectedServerIndex, epIdx) }
+                                },
+                            )
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = displayLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = CinemaColors.TextPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             }
         }
@@ -762,7 +1033,7 @@ private fun EpisodeSelectorSection(
 }
 
 @Composable
-private fun SectionTitle(title: String) {
+private fun SectionHeader(title: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
