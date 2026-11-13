@@ -9,11 +9,17 @@
         android:required="false" />
 
     <application
-        android:banner="@drawable/tv_banner">
+        android:banner="@drawable/tv_banner"
+        android:icon="@mipmap/ic_launcher"
+        android:logo="@drawable/tv_banner">
         <activity
             android:name=".MainActivity"
+            android:banner="@drawable/tv_banner"
+            android:icon="@mipmap/ic_launcher"
+            android:logo="@drawable/tv_banner"
             android:exported="true">
             <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>

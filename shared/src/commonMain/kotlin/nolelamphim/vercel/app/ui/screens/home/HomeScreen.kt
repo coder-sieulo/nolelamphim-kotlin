@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -229,8 +230,14 @@ fun HomeScreen(
                         }
                     }
 
-                    // Pinned Frosted Glass Header (Mobile)
-                    if (!isTv) {
+                    // Header: TV Top Bar or Mobile Pinned Header
+                    if (isTv) {
+                        TvTopBar(
+                            onSearch = onOpenSearch,
+                            onFilter = onOpenFilter,
+                            modifier = Modifier.align(Alignment.TopCenter),
+                        )
+                    } else {
                         MobileBrandHeader(
                             isScrolled = isScrolled,
                             onSearch = onOpenSearch,
@@ -413,3 +420,107 @@ private fun MobileBrandHeader(
         }
     }
 }
+
+@Composable
+private fun TvTopBar(
+    onSearch: (() -> Unit)?,
+    onFilter: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.Black.copy(alpha = 0.85f),
+                    0.6f to Color.Black.copy(alpha = 0.4f),
+                    1f to Color.Transparent,
+                ),
+            )
+            .padding(horizontal = 32.dp, vertical = 20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF14141E))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    painter = painterResource(Res.drawable.nolelamphim_logo),
+                    contentDescription = "Nô Lệ Làm Phim",
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Fit,
+                )
+            }
+            Column {
+                Text(
+                    text = "NÔ LỆ LÀM PHIM",
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
+                    color = CinemaColors.TextPrimary,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 0.5.sp,
+                )
+                Text(
+                    text = "Cinema Streaming for TV",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    color = CinemaColors.Primary,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (onSearch != null) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                        .cinemaFocusable(onClick = onSearch, shape = RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    IconButton(onClick = onSearch, modifier = Modifier.size(44.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Tìm kiếm",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            }
+            if (onFilter != null) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                        .cinemaFocusable(onClick = onFilter, shape = RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    IconButton(onClick = onFilter, modifier = Modifier.size(44.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Bộ lọc",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
