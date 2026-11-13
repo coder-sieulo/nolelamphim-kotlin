@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
@@ -93,6 +94,7 @@ import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.model.MovieDetail
 import nolelamphim.vercel.app.ui.components.ErrorView
 import nolelamphim.vercel.app.ui.components.LoadingView
+import nolelamphim.vercel.app.ui.components.MiniPlayerData
 import nolelamphim.vercel.app.ui.components.MovieRow
 import nolelamphim.vercel.app.ui.components.SetScreenFullscreen
 import nolelamphim.vercel.app.ui.components.VideoPlayer
@@ -110,6 +112,7 @@ fun WatchScreen(
     onBack: () -> Unit,
     onNextEpisode: () -> Unit = {},
     onMovieClick: (slug: String) -> Unit = {},
+    onMinimize: ((MiniPlayerData) -> Unit)? = null,
     viewModel: WatchViewModel = viewModel {
         WatchViewModel(
             repository = AppContainer.movieRepository,
@@ -152,6 +155,7 @@ fun WatchScreen(
                     MobileWatchLayout(
                         state = s,
                         onBack = onBack,
+                        onMinimize = onMinimize,
                         onToggleFavorite = { viewModel.toggleFavorite() },
                         onSelectEpisode = { serverIdx, epIdx ->
                             viewModel.selectEpisode(serverIdx, epIdx)
@@ -180,6 +184,7 @@ fun WatchScreen(
 private fun MobileWatchLayout(
     state: WatchUiState.Success,
     onBack: () -> Unit,
+    onMinimize: ((MiniPlayerData) -> Unit)? = null,
     onToggleFavorite: () -> Unit,
     onSelectEpisode: (serverIndex: Int, episodeIndex: Int) -> Unit,
     onNext: () -> Unit,
@@ -649,6 +654,10 @@ private fun MobileWatchLayout(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
@@ -666,6 +675,39 @@ private fun MobileWatchLayout(
                                 )
                             }
                         }
+
+                        if (onMinimize != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.55f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                                    .bounceClick {
+                                        onMinimize(
+                                            MiniPlayerData(
+                                                slug = state.movie.slug,
+                                                serverIndex = state.currentServerIndex,
+                                                episodeIndex = state.currentEpisodeIndex,
+                                                movieName = state.movieName,
+                                                episodeName = state.episodeName,
+                                                posterUrl = state.movie.posterUrl,
+                                                playbackUrl = state.playbackUrl,
+                                                embedUrl = state.embedUrl,
+                                            ),
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Thu nhỏ xuống góc",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(26.dp),
+                                )
+                            }
+                        }
+                    }
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -853,6 +895,51 @@ private fun MobileWatchLayout(
                                 color = Color.White,
                                 fontWeight = FontWeight.SemiBold,
                             )
+                        }
+                    }
+
+                    // Minimize to Corner Button
+                    if (onMinimize != null) {
+                        Box(
+                            modifier = Modifier
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(CinemaColors.SurfaceCard)
+                                .border(1.dp, CinemaColors.BorderSubtle, RoundedCornerShape(12.dp))
+                                .bounceClick(onClick = {
+                                    onMinimize(
+                                        MiniPlayerData(
+                                            slug = state.movie.slug,
+                                            serverIndex = state.currentServerIndex,
+                                            episodeIndex = state.currentEpisodeIndex,
+                                            movieName = state.movieName,
+                                            episodeName = state.episodeName,
+                                            posterUrl = state.movie.posterUrl,
+                                            playbackUrl = state.playbackUrl,
+                                            embedUrl = state.embedUrl,
+                                        ),
+                                    )
+                                })
+                                .padding(horizontal = 14.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Thu nhỏ",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Text(
+                                    text = "Thu nhỏ",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
                         }
                     }
 

@@ -70,6 +70,8 @@ import nolelamphim.vercel.app.ui.screens.detail.DetailScreen
 import nolelamphim.vercel.app.ui.screens.filter.FilterScreen
 import nolelamphim.vercel.app.ui.screens.home.HomeScreen
 import nolelamphim.vercel.app.ui.screens.library.LibraryScreen
+import nolelamphim.vercel.app.ui.components.FloatingMiniPlayer
+import nolelamphim.vercel.app.ui.components.MiniPlayerManager
 import nolelamphim.vercel.app.ui.screens.search.SearchScreen
 import nolelamphim.vercel.app.ui.screens.watch.WatchScreen
 import androidx.compose.animation.core.Spring
@@ -236,6 +238,10 @@ fun AppNavHost() {
                                     popUpTo(Routes.WATCH) { inclusive = true }
                                 }
                             },
+                            onMinimize = { miniData ->
+                                MiniPlayerManager.minimize(miniData)
+                                navController.popBackStack()
+                            },
                         )
                     }
                 }
@@ -343,6 +349,38 @@ fun AppNavHost() {
                                 launchSingleTop = true
                                 restoreState = true
                             }
+                        },
+                    )
+                }
+            }
+
+            // Floating YouTube-Style Corner Mini Player (Bottom-Right)
+            val activeMiniPlayer = MiniPlayerManager.activePlayer
+            AnimatedVisibility(
+                visible = activeMiniPlayer != null && !isFullscreenRoute,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 12.dp,
+                        bottom = if (!isTv && isTopLevelRoute) 76.dp else 20.dp,
+                    )
+                    .zIndex(999f),
+            ) {
+                activeMiniPlayer?.let { data ->
+                    FloatingMiniPlayer(
+                        data = data,
+                        onExpand = {
+                            MiniPlayerManager.close()
+                            navController.navigate(
+                                Routes.watch(data.slug, data.serverIndex, data.episodeIndex),
+                            ) {
+                                launchSingleTop = true
+                            }
+                        },
+                        onClose = {
+                            MiniPlayerManager.close()
                         },
                     )
                 }
