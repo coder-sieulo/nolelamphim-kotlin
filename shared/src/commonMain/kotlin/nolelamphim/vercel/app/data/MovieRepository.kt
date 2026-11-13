@@ -81,28 +81,63 @@ class MovieRepository(
     }
 
     suspend fun detail(slug: String): MovieDetail {
-        val response = api.detail(slug)
-        val baseDetail = response.movie.toDetail(response.episodes)
+        val vsDetail = try {
+            val response = api.detail(slug)
+            response.movie.toDetail(response.episodes)
+        } catch (_: Exception) {
+            null
+        }
 
+        if (vsDetail == null) {
+            // Slug is from KKPhim or NguonC, or VSMov failed: try KKPhim first
+            val kkDetail = try {
+                multiSourceService?.getKkphimDetailAsMovieDetail(slug)
+            } catch (_: Exception) {
+                null
+            }
+            if (kkDetail != null) {
+                val altServers = try {
+                    multiSourceService?.resolveAlternativeServers(slug, kkDetail.name).orEmpty()
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                val merged = kkDetail.servers + altServers.filter { it.name.startsWith("NguonC") }
+                return kkDetail.copy(servers = merged)
+            }
+
+            // Next try NguonC
+            val ncDetail = try {
+                multiSourceService?.getNguoncDetailAsMovieDetail(slug)
+            } catch (_: Exception) {
+                null
+            }
+            if (ncDetail != null) {
+                return ncDetail
+            }
+
+            throw IllegalStateException("Không tìm thấy thông tin phim từ bất kỳ nguồn nào")
+        }
+
+        // VSMov succeeded: enrich with alternative servers (KKPhim HLS VIP + NguonC)
         val altServers = try {
-            multiSourceService?.resolveAlternativeServers(slug, baseDetail.name).orEmpty()
+            multiSourceService?.resolveAlternativeServers(slug, vsDetail.name).orEmpty()
         } catch (_: Exception) {
             emptyList()
         }
 
-        if (altServers.isEmpty()) return baseDetail
+        if (altServers.isEmpty()) return vsDetail
 
         // Merge servers: KKPhim VIP HLS first (fast native m3u8), then VSMov, then NguonC
         val mergedServers = buildList {
             // 1. KKPhim (HLS VIP) servers
             addAll(altServers.filter { it.name.startsWith("KKPhim") })
             // 2. VSMov servers
-            addAll(baseDetail.servers)
+            addAll(vsDetail.servers)
             // 3. NguonC backup servers
             addAll(altServers.filter { it.name.startsWith("NguonC") })
         }
 
-        return baseDetail.copy(servers = mergedServers)
+        return vsDetail.copy(servers = mergedServers)
     }
 
     /**
