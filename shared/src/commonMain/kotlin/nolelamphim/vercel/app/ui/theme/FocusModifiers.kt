@@ -1,8 +1,11 @@
 package nolelamphim.vercel.app.ui.theme
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +26,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 
 /**
  * CompositionLocal indicating if current device is Android TV / 10-foot UI.
@@ -31,7 +35,7 @@ val LocalIsTv = compositionLocalOf { false }
 
 /**
  * Reusable modifier for focus & hover interactions that look stunning on both TV (D-pad)
- * and Mobile/Desktop.
+ * and Mobile/Desktop, featuring bouncy spring physics and glowing neon borders.
  */
 @Composable
 fun Modifier.cinemaFocusable(
@@ -40,55 +44,72 @@ fun Modifier.cinemaFocusable(
     scaleFocused: Float = 1.05f,
     borderWidth: Dp = 2.dp,
     focusedBorderColor: Color = Color(0xFFF97316),
-    focusedGlowColor: Color = Color(0x66F97316),
+    focusedGlowColor: Color = Color(0x80F97316),
     enabled: Boolean = true,
+    onFocusChanged: ((Boolean) -> Unit)? = null,
 ): Modifier {
     var isFocused by remember { mutableStateOf(false) }
     val isTv = LocalIsTv.current
 
+    // On TV, if caller didn't customize scaleFocused, default to a bold 1.13x zoom so it pops from 3 meters away
+    val effectiveScale = if (scaleFocused == 1.05f && isTv) 1.13f else scaleFocused
+
     val scale by animateFloatAsState(
-        targetValue = if (isFocused) scaleFocused else 1f,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        targetValue = if (isFocused) effectiveScale else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
         label = "cinema-focus-scale",
     )
 
     val shadowElevation by animateDpAsState(
-        targetValue = if (isFocused) 12.dp else 0.dp,
-        animationSpec = tween(durationMillis = 200),
+        targetValue = if (isFocused) (if (isTv) 20.dp else 12.dp) else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
         label = "cinema-focus-elevation",
+    )
+
+    val animatedBorderColor by animateColorAsState(
+        targetValue = if (isFocused) focusedBorderColor else Color.White.copy(alpha = 0.08f),
+        animationSpec = tween(durationMillis = 220),
+        label = "cinema-focus-border-color",
+    )
+
+    val animatedBorderWidth by animateDpAsState(
+        targetValue = if (isFocused) (if (isTv) (borderWidth + 0.5.dp) else borderWidth) else 1.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
+        label = "cinema-focus-border-width",
     )
 
     val interactionSource = remember { MutableInteractionSource() }
 
     return this
         .onFocusChanged { focusState ->
-            isFocused = focusState.isFocused
+            val nowFocused = focusState.isFocused
+            if (isFocused != nowFocused) {
+                isFocused = nowFocused
+                onFocusChanged?.invoke(nowFocused)
+            }
         }
+        .zIndex(if (isFocused) 30f else 1f)
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
-            // Bring focused item to the top z-index if focused
-            if (isFocused) {
-                shadowElevation.toPx()
-            }
         }
-        .then(
-            if (isFocused) {
-                Modifier
-                    .shadow(
-                        elevation = shadowElevation,
-                        shape = shape,
-                        spotColor = focusedGlowColor,
-                        ambientColor = focusedGlowColor,
-                    )
-                    .border(width = borderWidth, color = focusedBorderColor, shape = shape)
-            } else {
-                Modifier.border(
-                    width = 1.dp,
-                    color = Color.White.copy(alpha = 0.08f),
-                    shape = shape,
-                )
-            }
+        .shadow(
+            elevation = shadowElevation,
+            shape = shape,
+            spotColor = focusedGlowColor,
+            ambientColor = focusedGlowColor,
+            clip = false,
+        )
+        .border(
+            width = animatedBorderWidth,
+            color = animatedBorderColor,
+            shape = shape,
         )
         .focusable(enabled = enabled, interactionSource = interactionSource)
         .then(

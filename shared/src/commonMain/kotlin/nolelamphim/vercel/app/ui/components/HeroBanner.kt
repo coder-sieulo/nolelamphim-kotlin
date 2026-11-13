@@ -222,43 +222,48 @@ fun HeroBannerCarousel(
 
                     // Buttons
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Button(
-                            onClick = { onMovieClick(movie) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = CinemaColors.Primary,
-                                contentColor = Color.White,
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.cinemaFocusable(
-                                onClick = { onMovieClick(movie) },
-                                shape = RoundedCornerShape(12.dp),
-                                scaleFocused = 1.08f,
-                            ),
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Xem ngay", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-
-                        OutlinedButton(
-                            onClick = { onMovieClick(movie) },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                        Box(
                             modifier = Modifier
-                                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
                                 .cinemaFocusable(
                                     onClick = { onMovieClick(movie) },
                                     shape = RoundedCornerShape(12.dp),
-                                    scaleFocused = 1.08f,
-                                ),
+                                    scaleFocused = if (isTv) 1.10f else 1.05f,
+                                    focusedBorderColor = Color.White,
+                                )
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(CinemaColors.Primary)
+                                .padding(horizontal = 22.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Chi tiết", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Xem ngay", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .cinemaFocusable(
+                                    onClick = { onMovieClick(movie) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    scaleFocused = if (isTv) 1.10f else 1.05f,
+                                    focusedBorderColor = CinemaColors.NeonCyan,
+                                )
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.12f))
+                                .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Chi tiết", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            }
                         }
                     }
                 }

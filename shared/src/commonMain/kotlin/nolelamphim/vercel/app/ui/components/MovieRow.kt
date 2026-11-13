@@ -23,11 +23,21 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -118,7 +128,7 @@ fun MovieRow(
 }
 
 /**
- * Showcase Netflix-style Top 10 Ranking Row with stylized bold rank numbers
+ * Showcase Netflix-style Top 10 Ranking Row with stylized bold rank numbers that glow on focus
  */
 @Composable
 fun TopRankingRow(
@@ -174,37 +184,73 @@ fun TopRankingRow(
 
         LazyRow(
             state = listState,
-            contentPadding = PaddingValues(horizontal = horizontalPadding),
+            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = if (isTv) 12.dp else 4.dp),
             horizontalArrangement = Arrangement.spacedBy(if (isTv) 20.dp else 14.dp),
         ) {
             itemsIndexed(topMovies, key = { _, movie -> movie.id }) { index, movie ->
-                val rank = index + 1
-                Box(
-                    modifier = Modifier.width(if (isTv) 200.dp else 160.dp),
-                ) {
-                    // Stylized giant background number
-                    Text(
-                        text = rank.toString(),
-                        fontSize = if (isTv) 100.sp else 82.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White.copy(alpha = 0.22f),
-                        lineHeight = if (isTv) 95.sp else 78.sp,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .offset(x = (-4).dp, y = (-12).dp),
-                    )
-
-                    // Movie Card sitting slightly shifted over the rank number
-                    MovieCard(
-                        movie = movie,
-                        onClick = { onMovieClick(movie) },
-                        modifier = Modifier
-                            .width(if (isTv) 160.dp else 126.dp)
-                            .align(Alignment.CenterEnd),
-                    )
-                }
+                TopRankingItem(
+                    rank = index + 1,
+                    movie = movie,
+                    onClick = { onMovieClick(movie) },
+                    isTv = isTv,
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun TopRankingItem(
+    rank: Int,
+    movie: Movie,
+    onClick: () -> Unit,
+    isTv: Boolean,
+) {
+    var isCardFocused by remember { mutableStateOf(false) }
+
+    val rankColor by animateColorAsState(
+        targetValue = if (isCardFocused) Color(0xFFFF4D4D) else Color.White.copy(alpha = 0.22f),
+        animationSpec = tween(durationMillis = 220),
+        label = "rank-color",
+    )
+
+    val rankScale by animateFloatAsState(
+        targetValue = if (isCardFocused) (if (isTv) 1.12f else 1.06f) else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "rank-scale",
+    )
+
+    Box(
+        modifier = Modifier.width(if (isTv) 200.dp else 160.dp),
+    ) {
+        // Stylized giant background number that reacts to card focus
+        Text(
+            text = rank.toString(),
+            fontSize = if (isTv) 100.sp else 82.sp,
+            fontWeight = FontWeight.Black,
+            color = rankColor,
+            lineHeight = if (isTv) 95.sp else 78.sp,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-4).dp, y = (-12).dp)
+                .graphicsLayer {
+                    scaleX = rankScale
+                    scaleY = rankScale
+                },
+        )
+
+        // Movie Card sitting slightly shifted over the rank number
+        MovieCard(
+            movie = movie,
+            onClick = onClick,
+            onFocusChanged = { isCardFocused = it },
+            modifier = Modifier
+                .width(if (isTv) 160.dp else 126.dp)
+                .align(Alignment.CenterEnd),
+        )
     }
 }
 
