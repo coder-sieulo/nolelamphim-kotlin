@@ -113,6 +113,10 @@ fun FloatingMiniPlayer(
                     url = data.playbackUrl,
                     fallbackUrl = data.embedUrl,
                     modifier = Modifier.fillMaxSize(),
+                    initialPositionMs = data.positionMs,
+                    onPositionChanged = { cur, _ ->
+                        MiniPlayerManager.updatePosition(cur)
+                    },
                 )
 
                 // Subtitle badge overlay on mini video

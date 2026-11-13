@@ -34,6 +34,8 @@ data class WatchEntry(
     val serverName: String,
     val episodeIndex: Int,
     val episodeName: String,
+    val positionMs: Long = 0L,
+    val durationMs: Long = 0L,
 )
 
 fun FavoriteMovie.toMovie(): Movie =
@@ -116,6 +118,37 @@ class LocalLibrary(private val store: KeyValueStore = createKeyValueStore()) {
             KEY_HISTORY,
             json.encodeToString(ListSerializer(WatchEntry.serializer()), updated),
         )
+    }
+
+    fun updateProgress(
+        slug: String,
+        serverIndex: Int,
+        episodeIndex: Int,
+        positionMs: Long,
+        durationMs: Long,
+    ) {
+        if (positionMs <= 0L) return
+        val current = _history.value
+        val existing = current.firstOrNull { it.slug == slug } ?: return
+        val updatedEntry = existing.copy(
+            serverIndex = serverIndex,
+            episodeIndex = episodeIndex,
+            positionMs = positionMs,
+            durationMs = durationMs,
+        )
+        val updated = listOf(updatedEntry) + current.filterNot { it.slug == slug }
+        _history.value = updated
+        store.putString(
+            KEY_HISTORY,
+            json.encodeToString(ListSerializer(WatchEntry.serializer()), updated),
+        )
+    }
+
+    fun getSavedPosition(slug: String, serverIndex: Int, episodeIndex: Int): Long {
+        val entry = _history.value.firstOrNull {
+            it.slug == slug && it.serverIndex == serverIndex && it.episodeIndex == episodeIndex
+        }
+        return entry?.positionMs ?: 0L
     }
 
     fun clearHistory() {

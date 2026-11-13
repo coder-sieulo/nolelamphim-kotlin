@@ -19,6 +19,8 @@ actual fun VideoPlayer(
     playbackSpeed: Float,
     resizeMode: VideoResizeMode,
     seekDelta: Long,
+    initialPositionMs: Long,
+    onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)?,
 ) {
     // WebKit plays HLS itself but cannot strip the provider's segment wrapper, so iOS keeps
     // using the original embed page rather than the resolved playlist.

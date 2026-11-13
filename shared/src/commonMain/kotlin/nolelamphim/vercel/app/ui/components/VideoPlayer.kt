@@ -12,6 +12,8 @@ enum class VideoResizeMode(val displayName: String) {
 /**
  * @param url media URL a platform player can open directly (native playback).
  * @param fallbackUrl original embed page, used when [url] cannot be played natively.
+ * @param initialPositionMs playback offset in milliseconds to seek to on start.
+ * @param onPositionChanged callback invoked periodically and on exit with current position & total duration.
  */
 @Composable
 expect fun VideoPlayer(
@@ -21,4 +23,6 @@ expect fun VideoPlayer(
     playbackSpeed: Float = 1f,
     resizeMode: VideoResizeMode = VideoResizeMode.FIT,
     seekDelta: Long = 0L,
+    initialPositionMs: Long = 0L,
+    onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)? = null,
 )

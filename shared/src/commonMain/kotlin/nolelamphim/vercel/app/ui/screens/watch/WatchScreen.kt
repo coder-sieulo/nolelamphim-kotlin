@@ -95,6 +95,7 @@ import nolelamphim.vercel.app.model.MovieDetail
 import nolelamphim.vercel.app.ui.components.ErrorView
 import nolelamphim.vercel.app.ui.components.LoadingView
 import nolelamphim.vercel.app.ui.components.MiniPlayerData
+import nolelamphim.vercel.app.ui.components.MiniPlayerManager
 import nolelamphim.vercel.app.ui.components.MovieRow
 import nolelamphim.vercel.app.ui.components.SetScreenFullscreen
 import nolelamphim.vercel.app.ui.components.VideoPlayer
@@ -128,6 +129,11 @@ fun WatchScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    val initialResumePos = remember(slug, serverIndex, episodeIndex) {
+        val miniPos = MiniPlayerManager.consumeResumePosition(slug, serverIndex, episodeIndex)
+        if (miniPos > 0L) miniPos else AppContainer.localLibrary.getSavedPosition(slug, serverIndex, episodeIndex)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -145,6 +151,10 @@ fun WatchScreen(
                 if (isTv) {
                     TvWatchLayout(
                         state = s,
+                        initialPositionMs = initialResumePos,
+                        onProgressChanged = { pos, dur ->
+                            viewModel.updateProgress(pos, dur)
+                        },
                         onBack = onBack,
                         onSelectEpisode = { serverIdx, epIdx ->
                             viewModel.selectEpisode(serverIdx, epIdx)
@@ -154,6 +164,10 @@ fun WatchScreen(
                 } else {
                     MobileWatchLayout(
                         state = s,
+                        initialPositionMs = initialResumePos,
+                        onProgressChanged = { pos, dur ->
+                            viewModel.updateProgress(pos, dur)
+                        },
                         onBack = onBack,
                         onMinimize = onMinimize,
                         onToggleFavorite = { viewModel.toggleFavorite() },
@@ -183,6 +197,8 @@ fun WatchScreen(
 @Composable
 private fun MobileWatchLayout(
     state: WatchUiState.Success,
+    initialPositionMs: Long = 0L,
+    onProgressChanged: (positionMs: Long, durationMs: Long) -> Unit = { _, _ -> },
     onBack: () -> Unit,
     onMinimize: ((MiniPlayerData) -> Unit)? = null,
     onToggleFavorite: () -> Unit,
@@ -191,6 +207,9 @@ private fun MobileWatchLayout(
     onMovieClick: (slug: String) -> Unit,
     onShowMessage: (String) -> Unit,
 ) {
+    var currentPositionMs by remember(state.currentServerIndex, state.currentEpisodeIndex) {
+        mutableStateOf(initialPositionMs)
+    }
     var isFullscreen by remember { mutableStateOf(false) }
     var isOverlayVisible by remember { mutableStateOf(true) }
     var isEpisodeDrawerOpen by remember { mutableStateOf(false) }
@@ -260,6 +279,11 @@ private fun MobileWatchLayout(
                 playbackSpeed = playbackSpeed,
                 resizeMode = resizeMode,
                 seekDelta = seekDelta,
+                initialPositionMs = currentPositionMs,
+                onPositionChanged = { cur, dur ->
+                    currentPositionMs = cur
+                    onProgressChanged(cur, dur)
+                },
             )
 
             // Animated Double-Tap Seek Feedback Badge
@@ -572,6 +596,11 @@ private fun MobileWatchLayout(
                                 playbackSpeed = playbackSpeed,
                                 resizeMode = resizeMode,
                                 seekDelta = seekDelta,
+                                initialPositionMs = currentPositionMs,
+                                onPositionChanged = { cur, dur ->
+                                    currentPositionMs = cur
+                                    onProgressChanged(cur, dur)
+                                },
                             )
 
                             // Animated Double-Tap Seek Feedback Badge in Portrait
@@ -694,6 +723,7 @@ private fun MobileWatchLayout(
                                                 posterUrl = state.movie.posterUrl,
                                                 playbackUrl = state.playbackUrl,
                                                 embedUrl = state.embedUrl,
+                                                positionMs = currentPositionMs,
                                             ),
                                         )
                                     },
@@ -917,6 +947,7 @@ private fun MobileWatchLayout(
                                             posterUrl = state.movie.posterUrl,
                                             playbackUrl = state.playbackUrl,
                                             embedUrl = state.embedUrl,
+                                            positionMs = currentPositionMs,
                                         ),
                                     )
                                 })
@@ -1295,10 +1326,15 @@ private fun InPlayerEpisodeGrid(
 @Composable
 private fun TvWatchLayout(
     state: WatchUiState.Success,
+    initialPositionMs: Long = 0L,
+    onProgressChanged: (positionMs: Long, durationMs: Long) -> Unit = { _, _ -> },
     onBack: () -> Unit,
     onSelectEpisode: (serverIndex: Int, episodeIndex: Int) -> Unit,
     onNext: () -> Unit,
 ) {
+    var currentPositionMs by remember(state.currentServerIndex, state.currentEpisodeIndex) {
+        mutableStateOf(initialPositionMs)
+    }
     var isHudVisible by remember { mutableStateOf(true) }
     var isEpisodeDrawerOpen by remember { mutableStateOf(false) }
     var selectedServerIdx by remember(state.currentServerIndex) {
@@ -1326,6 +1362,11 @@ private fun TvWatchLayout(
             url = state.playbackUrl,
             fallbackUrl = state.embedUrl,
             modifier = Modifier.fillMaxSize(),
+            initialPositionMs = currentPositionMs,
+            onPositionChanged = { cur, dur ->
+                currentPositionMs = cur
+                onProgressChanged(cur, dur)
+            },
         )
 
         // 2. Cinema TV HUD Overlay

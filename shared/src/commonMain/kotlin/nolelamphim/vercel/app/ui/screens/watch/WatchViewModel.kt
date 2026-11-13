@@ -102,4 +102,10 @@ class WatchViewModel(
         val s = _uiState.value as? WatchUiState.Success ?: return
         _uiState.value = s.copy(isFavorite = localLibrary.isFavorite(slug))
     }
+
+    fun updateProgress(positionMs: Long, durationMs: Long) {
+        if (positionMs > 0L) {
+            localLibrary.updateProgress(slug, currentServerIdx, currentEpisodeIdx, positionMs, durationMs)
+        }
+    }
 }

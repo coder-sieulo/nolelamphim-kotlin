@@ -20,6 +20,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.delay
 import nolelamphim.vercel.app.data.stream.StreamUrlResolver
 
 @Composable
@@ -30,6 +31,8 @@ actual fun VideoPlayer(
     playbackSpeed: Float,
     resizeMode: VideoResizeMode,
     seekDelta: Long,
+    initialPositionMs: Long,
+    onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)?,
 ) {
     val streamUrl = remember(url) { StreamUrlResolver.resolve(url) }
     if (streamUrl == null) {
@@ -42,6 +45,8 @@ actual fun VideoPlayer(
             playbackSpeed = playbackSpeed,
             resizeMode = resizeMode,
             seekDelta = seekDelta,
+            initialPositionMs = initialPositionMs,
+            onPositionChanged = onPositionChanged,
         )
     }
 }
@@ -53,6 +58,8 @@ private fun NativeVideoPlayer(
     playbackSpeed: Float,
     resizeMode: VideoResizeMode,
     seekDelta: Long,
+    initialPositionMs: Long,
+    onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)?,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -74,6 +81,9 @@ private fun NativeVideoPlayer(
             .build()
             .apply {
                 setMediaItem(MediaItem.fromUri(streamUrl))
+                if (initialPositionMs > 0L) {
+                    seekTo(initialPositionMs)
+                }
                 playWhenReady = true
                 prepare()
             }
@@ -96,8 +106,28 @@ private fun NativeVideoPlayer(
         }
     }
 
+    // Periodically update progress callback every 500ms
+    LaunchedEffect(player, onPositionChanged) {
+        if (onPositionChanged == null) return@LaunchedEffect
+        while (true) {
+            val cur = player.currentPosition.coerceAtLeast(0L)
+            val dur = player.duration.coerceAtLeast(0L)
+            if (cur > 0L || dur > 0L) {
+                onPositionChanged(cur, dur)
+            }
+            delay(500)
+        }
+    }
+
     DisposableEffect(player) {
-        onDispose { player.release() }
+        onDispose {
+            val cur = player.currentPosition.coerceAtLeast(0L)
+            val dur = player.duration.coerceAtLeast(0L)
+            if (cur > 0L) {
+                onPositionChanged?.invoke(cur, dur)
+            }
+            player.release()
+        }
     }
 
     DisposableEffect(lifecycleOwner, player) {

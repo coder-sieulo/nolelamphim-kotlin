@@ -372,6 +372,13 @@ fun AppNavHost() {
                     FloatingMiniPlayer(
                         data = data,
                         onExpand = {
+                            val resumePos = data.positionMs
+                            MiniPlayerManager.setResumePosition(
+                                data.slug,
+                                data.serverIndex,
+                                data.episodeIndex,
+                                resumePos,
+                            )
                             MiniPlayerManager.close()
                             navController.navigate(
                                 Routes.watch(data.slug, data.serverIndex, data.episodeIndex),
