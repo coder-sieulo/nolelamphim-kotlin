@@ -23,6 +23,24 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalMovies
 import androidx.compose.material.icons.filled.Movie
@@ -82,13 +100,17 @@ fun HomeScreen(
     onContinueClick: (WatchEntry) -> Unit,
     onOpenSearch: (() -> Unit)? = null,
     onOpenFilter: (() -> Unit)? = null,
+    onSearchSubmit: ((String) -> Unit)? = null,
     viewModel: HomeViewModel = viewModel {
         HomeViewModel(AppContainer.movieRepository, AppContainer.localLibrary)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val continueWatching by viewModel.continueWatching.collectAsStateWithLifecycle()
+    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
     val isTv = LocalIsTv.current
+    var isSearchExpanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
     when {
         state.isLoading -> HomeSkeletonScreen()
@@ -233,17 +255,287 @@ fun HomeScreen(
                     // Header: TV Top Bar or Mobile Pinned Header
                     if (isTv) {
                         TvTopBar(
-                            onSearch = onOpenSearch,
+                            onSearch = { isSearchExpanded = !isSearchExpanded },
                             onFilter = onOpenFilter,
                             modifier = Modifier.align(Alignment.TopCenter),
                         )
                     } else {
                         MobileBrandHeader(
                             isScrolled = isScrolled,
-                            onSearch = onOpenSearch,
+                            onSearch = { isSearchExpanded = !isSearchExpanded },
                             onFilter = onOpenFilter,
                             modifier = Modifier.align(Alignment.TopCenter),
                         )
+                    }
+
+                    // Scrim when search dropdown is open
+                    if (isSearchExpanded) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .clickable { isSearchExpanded = false },
+                        )
+                    }
+
+                    // Floating Web-like Search Dropdown Panel
+                    AnimatedVisibility(
+                        visible = isSearchExpanded,
+                        enter = slideInVertically(initialOffsetY = { -it / 2 }) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { -it / 2 }) + fadeOut(),
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .then(
+                                if (!isTv) Modifier.statusBarsPadding().padding(top = 58.dp)
+                                else Modifier.padding(top = 80.dp),
+                            )
+                            .padding(horizontal = if (isTv) 32.dp else 16.dp),
+                    ) {
+                        HomeSearchDropdown(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            searchHistory = searchHistory,
+                            onSearch = { q ->
+                                val cleanQuery = q.trim()
+                                    .removePrefix("🔥 ").removePrefix("🍿 ")
+                                    .removePrefix("🎬 ").removePrefix("⚡ ")
+                                    .removePrefix("✨ ").removePrefix("💕 ")
+                                    .removePrefix("💥 ").removePrefix("👻 ")
+                                if (cleanQuery.isNotBlank()) {
+                                    isSearchExpanded = false
+                                    if (onSearchSubmit != null) {
+                                        onSearchSubmit(cleanQuery)
+                                    } else {
+                                        onOpenSearch?.invoke()
+                                    }
+                                }
+                            },
+                            onClose = { isSearchExpanded = false },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeSearchDropdown(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    searchHistory: List<String>,
+    onSearch: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    val trendingTags = listOf(
+        "🔥 Chiếu rạp",
+        "🍿 Phim bộ",
+        "🎬 Phim lẻ",
+        "⚡ Mới nhất",
+        "✨ Anime",
+        "💕 Tình cảm",
+        "💥 Hành động",
+        "👻 Kinh dị",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 640.dp)
+            .shadow(24.dp, RoundedCornerShape(18.dp), spotColor = Color.Black)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xF5141420))
+            .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(18.dp))
+            .padding(16.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            // Header Row: Title & Close
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(CinemaColors.Primary),
+                    )
+                    Text(
+                        text = "Tìm kiếm phim",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .clickable(onClick = onClose),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Đóng",
+                        tint = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+
+            // Input Field with Action Button
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(
+                        text = "Nhập tên phim, diễn viên, đạo diễn...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = CinemaColors.TextMuted,
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Tìm kiếm",
+                        tint = CinemaColors.Primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                },
+                trailingIcon = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(end = 6.dp),
+                    ) {
+                        if (query.isNotBlank()) {
+                            IconButton(
+                                onClick = { onQueryChange("") },
+                                modifier = Modifier.size(28.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Xóa",
+                                    tint = CinemaColors.TextMuted,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(CinemaColors.Primary)
+                                .clickable { onSearch(query) }
+                                .padding(horizontal = 14.dp, vertical = 7.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "Tìm",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onSearch(query) }),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF0F0F17),
+                    unfocusedContainerColor = Color(0xFF0F0F17),
+                    focusedBorderColor = CinemaColors.Primary,
+                    unfocusedBorderColor = CinemaColors.BorderSubtle,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = CinemaColors.Primary,
+                ),
+            )
+
+            // Trending Suggestions
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Gợi ý thịnh hành",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CinemaColors.TextSecondary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 2.dp),
+                ) {
+                    items(trendingTags) { tag ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color.White.copy(alpha = 0.07f))
+                                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                                .clickable { onSearch(tag) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = tag,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Search History
+            if (searchHistory.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Tìm kiếm gần đây",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CinemaColors.TextSecondary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 2.dp),
+                    ) {
+                        items(searchHistory.take(6)) { historyQuery ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color(0xFF1B1B26))
+                                    .border(1.dp, CinemaColors.Primary.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                                    .clickable { onSearch(historyQuery) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.History,
+                                        contentDescription = null,
+                                        tint = CinemaColors.Primary,
+                                        modifier = Modifier.size(13.dp),
+                                    )
+                                    Text(
+                                        text = historyQuery,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

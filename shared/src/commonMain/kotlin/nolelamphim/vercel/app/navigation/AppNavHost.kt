@@ -96,7 +96,7 @@ fun AppNavHost() {
     var focusedRailIndex by remember { mutableStateOf<Int?>(null) }
     val isRailExpanded = isTv && focusedRailIndex != null
 
-    val isTopLevelRoute = currentRoute in listOf(Routes.HOME, Routes.SEARCH, Routes.LIBRARY, Routes.FILTER)
+    val isTopLevelRoute = currentRoute in listOf(Routes.HOME, Routes.SEARCH, Routes.LIBRARY, Routes.FILTER) || currentRoute?.startsWith("filter") == true
     val isFullscreenRoute = currentRoute?.startsWith("watch") == true
 
     CompositionLocalProvider(LocalIsTv provides isTv) {
@@ -129,13 +129,13 @@ fun AppNavHost() {
                                     Routes.watch(entry.slug, entry.serverIndex, entry.episodeIndex),
                                 )
                             },
-                            onOpenSearch = {
-                                navController.navigate(Routes.SEARCH) {
+                            onOpenFilter = {
+                                navController.navigate(Routes.FILTER) {
                                     launchSingleTop = true
                                 }
                             },
-                            onOpenFilter = {
-                                navController.navigate(Routes.FILTER) {
+                            onSearchSubmit = { query ->
+                                navController.navigate(Routes.filter(query)) {
                                     launchSingleTop = true
                                 }
                             },
@@ -143,12 +143,11 @@ fun AppNavHost() {
                     }
 
                     composable(Routes.SEARCH) {
-                        SearchScreen(
+                        FilterScreen(
+                            initialQuery = null,
+                            onBack = { navController.popBackStack() },
                             onMovieClick = { movie ->
                                 navController.navigate(Routes.detail(movie.slug))
-                            },
-                            onOpenFilter = {
-                                navController.navigate(Routes.FILTER)
                             },
                         )
                     }
@@ -189,6 +188,23 @@ fun AppNavHost() {
 
                     composable(Routes.FILTER) {
                         FilterScreen(
+                            initialQuery = null,
+                            onBack = { navController.popBackStack() },
+                            onMovieClick = { movie ->
+                                navController.navigate(Routes.detail(movie.slug))
+                            },
+                        )
+                    }
+
+                    composable(
+                        route = Routes.FILTER_QUERY,
+                        arguments = listOf(
+                            navArgument("query") { type = NavType.StringType },
+                        ),
+                    ) { entry ->
+                        val query = entry.arguments?.read { getStringOrNull("query") }
+                        FilterScreen(
+                            initialQuery = query,
                             onBack = { navController.popBackStack() },
                             onMovieClick = { movie ->
                                 navController.navigate(Routes.detail(movie.slug))
@@ -287,13 +303,6 @@ fun AppNavHost() {
                             launchSingleTop = true
                         }
                     },
-                    onSearch = {
-                        navController.navigate(Routes.SEARCH) {
-                            popUpTo(Routes.HOME) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
                     onFilter = {
                         navController.navigate(Routes.FILTER) {
                             popUpTo(Routes.HOME) { saveState = true }
@@ -331,13 +340,6 @@ fun AppNavHost() {
                         },
                         onFilter = {
                             navController.navigate(Routes.FILTER) {
-                                popUpTo(Routes.HOME) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        onSearch = {
-                            navController.navigate(Routes.SEARCH) {
                                 popUpTo(Routes.HOME) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
@@ -401,9 +403,10 @@ private fun MobileBottomNav(
     currentRoute: String?,
     onHome: () -> Unit,
     onFilter: () -> Unit,
-    onSearch: () -> Unit,
     onLibrary: () -> Unit,
 ) {
+    val isFilterSelected = currentRoute == Routes.FILTER || currentRoute?.startsWith("filter") == true || currentRoute == Routes.SEARCH
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -432,17 +435,10 @@ private fun MobileBottomNav(
                 modifier = Modifier.weight(1f),
             )
             MobileNavItem(
-                icon = Icons.Default.Tune,
-                label = "Bộ lọc",
-                isSelected = currentRoute == Routes.FILTER,
-                onClick = onFilter,
-                modifier = Modifier.weight(1f),
-            )
-            MobileNavItem(
                 icon = Icons.Default.Search,
-                label = "Tìm kiếm",
-                isSelected = currentRoute == Routes.SEARCH,
-                onClick = onSearch,
+                label = "Tìm kiếm & Lọc",
+                isSelected = isFilterSelected,
+                onClick = onFilter,
                 modifier = Modifier.weight(1f),
             )
             MobileNavItem(
@@ -504,11 +500,12 @@ private fun TvSideNavigationRail(
     isExpanded: Boolean,
     onItemFocusChanged: (index: Int, hasFocus: Boolean) -> Unit,
     onHome: () -> Unit,
-    onSearch: () -> Unit,
     onFilter: () -> Unit,
     onLibrary: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isFilterSelected = currentRoute == Routes.FILTER || currentRoute?.startsWith("filter") == true || currentRoute == Routes.SEARCH
+
     val railWidth by animateDpAsState(
         targetValue = if (isExpanded) 226.dp else 84.dp,
         animationSpec = spring(
@@ -599,19 +596,11 @@ private fun TvSideNavigationRail(
         )
         TvRailItem(
             icon = Icons.Default.Search,
-            label = "Tìm kiếm",
-            isSelected = currentRoute == Routes.SEARCH,
-            isExpanded = isExpanded,
-            onClick = onSearch,
-            onFocusChanged = { onItemFocusChanged(1, it) },
-        )
-        TvRailItem(
-            icon = Icons.Default.Tune,
-            label = "Bộ lọc",
-            isSelected = currentRoute == Routes.FILTER,
+            label = "Tìm kiếm & Lọc",
+            isSelected = isFilterSelected,
             isExpanded = isExpanded,
             onClick = onFilter,
-            onFocusChanged = { onItemFocusChanged(2, it) },
+            onFocusChanged = { onItemFocusChanged(1, it) },
         )
         TvRailItem(
             icon = Icons.Default.Bookmark,
@@ -619,7 +608,7 @@ private fun TvSideNavigationRail(
             isSelected = currentRoute == Routes.LIBRARY,
             isExpanded = isExpanded,
             onClick = onLibrary,
-            onFocusChanged = { onItemFocusChanged(3, it) },
+            onFocusChanged = { onItemFocusChanged(2, it) },
         )
     }
 }

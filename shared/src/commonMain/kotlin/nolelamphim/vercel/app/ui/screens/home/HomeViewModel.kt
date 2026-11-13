@@ -23,6 +23,7 @@ class HomeViewModel(
     val uiState = _uiState.asStateFlow()
 
     val continueWatching: StateFlow<List<WatchEntry>> = localLibrary.history
+    val searchHistory: StateFlow<List<String>> = localLibrary.searchHistory
 
     init {
         fetch(isRefresh = false)

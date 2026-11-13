@@ -4,6 +4,7 @@ import nolelamphim.vercel.app.data.Taxonomy
 import nolelamphim.vercel.app.model.Movie
 
 data class FilterUiState(
+    val query: String = "",
     val genres: List<Taxonomy> = emptyList(),
     val countries: List<Taxonomy> = emptyList(),
     val selectedGenre: String? = null,
@@ -15,11 +16,12 @@ data class FilterUiState(
     val error: String? = null,
     val page: Int = 0,
     val totalPages: Int = 1,
+    val totalItems: Int = 0,
     val sort: SortOption = SortOption.DEFAULT,
 ) {
     val hasMore: Boolean get() = page < totalPages
     val hasFilters: Boolean
-        get() = selectedGenre != null || selectedCountry != null || selectedYear != null
+        get() = query.isNotBlank() || selectedGenre != null || selectedCountry != null || selectedYear != null
 }
 
 enum class SortOption(val label: String) {

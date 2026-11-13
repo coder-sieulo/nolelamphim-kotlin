@@ -7,12 +7,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import nolelamphim.vercel.app.data.MovieRepository
+import nolelamphim.vercel.app.data.local.LocalLibrary
 
 class FilterViewModel(
     private val repository: MovieRepository,
+    private val localLibrary: LocalLibrary? = null,
+    initialQuery: String? = null,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(FilterUiState())
+    private val _uiState = MutableStateFlow(
+        FilterUiState(query = initialQuery?.trim().orEmpty()),
+    )
     val uiState = _uiState.asStateFlow()
 
     init {
@@ -24,6 +29,10 @@ class FilterViewModel(
                     genres = genres,
                     countries = countries,
                 )
+                // If initial query was passed, execute search immediately
+                if (!initialQuery.isNullOrBlank()) {
+                    apply()
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -32,6 +41,10 @@ class FilterViewModel(
                 )
             }
         }
+    }
+
+    fun setQuery(query: String) {
+        _uiState.value = _uiState.value.copy(query = query)
     }
 
     fun selectGenre(slug: String?) {
@@ -53,7 +66,11 @@ class FilterViewModel(
     }
 
     fun selectSort(sort: SortOption) {
-        _uiState.value = _uiState.value.copy(sort = sort)
+        val currentMovies = _uiState.value.results
+        _uiState.value = _uiState.value.copy(
+            sort = sort,
+            results = sortMovies(currentMovies, sort),
+        )
     }
 
     fun reset() {
@@ -66,26 +83,47 @@ class FilterViewModel(
 
     fun apply() {
         val state = _uiState.value
+        val trimmedQuery = state.query.trim()
+        if (trimmedQuery.isNotBlank()) {
+            localLibrary?.addSearchQuery(trimmedQuery)
+        }
+
         viewModelScope.launch {
             _uiState.value = state.copy(isLoading = true, error = null)
             try {
-                val result = repository.filteredPage(
-                    category = state.selectedGenre,
-                    country = state.selectedCountry,
-                    year = state.selectedYear,
-                )
+                val pageResult = if (trimmedQuery.isNotBlank()) {
+                    repository.searchPage(keyword = trimmedQuery, page = 1)
+                } else {
+                    repository.filteredPage(
+                        category = state.selectedGenre,
+                        country = state.selectedCountry,
+                        year = state.selectedYear,
+                        page = 1,
+                    )
+                }
+
+                // If user applied both keyword and dropdown filters, refine results
+                var movies = pageResult.movies
+                if (trimmedQuery.isNotBlank()) {
+                    if (state.selectedYear != null) {
+                        movies = movies.filter { it.year == state.selectedYear }
+                    }
+                }
+                movies = sortMovies(movies, state.sort)
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    results = result.movies,
-                    page = result.page,
-                    totalPages = result.totalPages,
+                    results = movies,
+                    page = pageResult.page,
+                    totalPages = pageResult.totalPages,
+                    totalItems = pageResult.totalItems,
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Lọc phim thất bại",
+                    error = e.message ?: "Không tìm thấy phim phù hợp",
                 )
             }
         }
@@ -94,21 +132,34 @@ class FilterViewModel(
     fun loadMore() {
         val state = _uiState.value
         if (state.isLoading || state.isLoadingMore || !state.hasMore) return
+        val trimmedQuery = state.query.trim()
 
         viewModelScope.launch {
             _uiState.value = state.copy(isLoadingMore = true, error = null)
             try {
-                val result = repository.filteredPage(
-                    category = state.selectedGenre,
-                    country = state.selectedCountry,
-                    year = state.selectedYear,
-                    page = state.page + 1,
-                )
+                val nextPage = state.page + 1
+                val pageResult = if (trimmedQuery.isNotBlank()) {
+                    repository.searchPage(keyword = trimmedQuery, page = nextPage)
+                } else {
+                    repository.filteredPage(
+                        category = state.selectedGenre,
+                        country = state.selectedCountry,
+                        year = state.selectedYear,
+                        page = nextPage,
+                    )
+                }
+
+                var newMovies = pageResult.movies
+                if (trimmedQuery.isNotBlank() && state.selectedYear != null) {
+                    newMovies = newMovies.filter { it.year == state.selectedYear }
+                }
+
+                val combined = sortMovies(state.results + newMovies, state.sort)
                 _uiState.value = _uiState.value.copy(
                     isLoadingMore = false,
-                    results = state.results + result.movies,
-                    page = result.page,
-                    totalPages = result.totalPages,
+                    results = combined,
+                    page = pageResult.page,
+                    totalPages = pageResult.totalPages,
                 )
             } catch (e: CancellationException) {
                 throw e

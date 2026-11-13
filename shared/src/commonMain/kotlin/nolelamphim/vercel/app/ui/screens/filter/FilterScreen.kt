@@ -26,6 +26,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -33,6 +35,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -43,6 +46,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -56,6 +61,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,10 +84,15 @@ private val filterYears = (2026 downTo 1995).toList()
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterScreen(
+    initialQuery: String? = null,
     onBack: () -> Unit,
     onMovieClick: (Movie) -> Unit,
-    viewModel: FilterViewModel = viewModel {
-        FilterViewModel(AppContainer.movieRepository)
+    viewModel: FilterViewModel = viewModel(key = "filter_${initialQuery.orEmpty()}") {
+        FilterViewModel(
+            repository = AppContainer.movieRepository,
+            localLibrary = AppContainer.localLibrary,
+            initialQuery = initialQuery,
+        )
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -101,7 +112,7 @@ fun FilterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(if (!isTv) Modifier.statusBarsPadding() else Modifier)
-                .padding(horizontal = horizontalPadding, vertical = 12.dp),
+                .padding(horizontal = horizontalPadding, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -126,20 +137,100 @@ fun FilterScreen(
 
             Column {
                 Text(
-                    text = "Bộ lọc phim",
+                    text = "Tìm kiếm & Bộ lọc",
                     style = if (isTv) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge,
                     color = CinemaColors.TextPrimary,
                     fontWeight = FontWeight.ExtraBold,
                 )
                 Text(
-                    text = "Khám phá phim theo thể loại, quốc gia, năm và sắp xếp",
+                    text = "Khám phá theo từ khóa, thể loại, quốc gia, năm và sắp xếp",
                     style = MaterialTheme.typography.labelSmall,
                     color = CinemaColors.TextMuted,
                 )
             }
         }
 
-        // 2. Dropdown Filter Section (Responsive: Row for TV, 2x2 Grid for Mobile)
+        // 2. Integrated Search Bar (Keyword Input)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding, vertical = 6.dp),
+        ) {
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = { viewModel.setQuery(it) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(
+                        text = "Nhập tên phim, diễn viên, đạo diễn...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = CinemaColors.TextMuted,
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Tìm kiếm",
+                        tint = CinemaColors.Primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                },
+                trailingIcon = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(end = 4.dp),
+                    ) {
+                        if (state.query.isNotBlank()) {
+                            IconButton(
+                                onClick = {
+                                    viewModel.setQuery("")
+                                    viewModel.apply()
+                                },
+                                modifier = Modifier.size(32.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Xóa từ khóa",
+                                    tint = CinemaColors.TextMuted,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(CinemaColors.Primary)
+                                .clickable { viewModel.apply() }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "Tìm",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { viewModel.apply() }),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF14141E),
+                    unfocusedContainerColor = Color(0xFF14141E),
+                    focusedBorderColor = CinemaColors.Primary,
+                    unfocusedBorderColor = CinemaColors.BorderSubtle,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = CinemaColors.Primary,
+                ),
+            )
+        }
+
+        // 3. Dropdown Filter Section (Responsive: Row for TV, 2x2 Grid for Mobile)
         if (isTv) {
             // TV: 4 dropdowns side by side in a single sleek toolbar
             Row(
@@ -264,16 +355,27 @@ fun FilterScreen(
             }
         }
 
-        // 3. Active Filter Badges Strip (Quick Dismiss Pills)
+        // 4. Active Filter Badges Strip (Quick Dismiss Pills)
         if (state.hasFilters || state.sort != SortOption.DEFAULT) {
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = 4.dp),
                 contentPadding = PaddingValues(horizontal = horizontalPadding),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                if (state.query.isNotBlank()) {
+                    item {
+                        ActiveFilterPill(
+                            label = "\"${state.query.trim()}\"",
+                            onRemove = {
+                                viewModel.setQuery("")
+                                viewModel.apply()
+                            },
+                        )
+                    }
+                }
                 if (selectedGenreName != null) {
                     item {
                         ActiveFilterPill(
@@ -321,11 +423,11 @@ fun FilterScreen(
             }
         }
 
-        // 4. Action Buttons (Apply & Reset)
+        // 5. Action Buttons (Apply & Reset)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalPadding, vertical = 8.dp),
+                .padding(horizontal = horizontalPadding, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -344,7 +446,7 @@ fun FilterScreen(
                 Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = if (state.hasFilters) "Áp dụng bộ lọc" else "Khám phá tất cả",
+                    text = if (state.query.isNotBlank()) "Tìm kiếm & Lọc" else if (state.hasFilters) "Áp dụng bộ lọc" else "Khám phá tất cả",
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -365,10 +467,10 @@ fun FilterScreen(
             }
         }
 
-        // 5. Results Section
+        // 6. Results Section
         when {
             state.isLoading && state.results.isEmpty() ->
-                LoadingView(message = "Đang áp dụng bộ lọc...")
+                LoadingView(message = "Đang tìm kiếm & tải danh sách phim...")
 
             state.error != null && state.results.isEmpty() -> ErrorView(
                 message = state.error.orEmpty(),
@@ -376,7 +478,7 @@ fun FilterScreen(
             )
 
             state.results.isEmpty() -> EmptyView(
-                message = "Chọn tiêu chí trong các menu dropdown bên trên rồi bấm Áp dụng bộ lọc",
+                message = if (state.query.isNotBlank()) "Không tìm thấy phim phù hợp với từ khóa \"${state.query}\"" else "Chọn tiêu chí lọc hoặc nhập từ khóa để tìm phim",
             )
 
             else -> PullToRefreshBox(
@@ -384,11 +486,27 @@ fun FilterScreen(
                 onRefresh = viewModel::apply,
                 modifier = Modifier.weight(1f),
             ) {
-                MovieGrid(
-                    movies = sortMovies(state.results, state.sort),
-                    onMovieClick = onMovieClick,
-                    onLoadMore = viewModel::loadMore,
-                )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Results count banner
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = horizontalPadding, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = if (state.totalItems > 0) "Tìm thấy ${state.totalItems} phim phù hợp" else "Tìm thấy ${state.results.size} phim phù hợp",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CinemaColors.TextSecondary,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+
+                    MovieGrid(
+                        movies = sortMovies(state.results, state.sort),
+                        onMovieClick = onMovieClick,
+                        onLoadMore = viewModel::loadMore,
+                    )
+                }
             }
         }
     }
@@ -450,7 +568,7 @@ private fun <T> CinemaDropdownField(
                 ) {
                     Text(
                         text = selectedText,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = if (hasValue) Color.White else CinemaColors.TextSecondary,
                         fontWeight = if (hasValue) FontWeight.Bold else FontWeight.Normal,
                         maxLines = 1,
@@ -460,8 +578,8 @@ private fun <T> CinemaDropdownField(
 
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Mở danh sách $label",
-                        tint = if (hasValue) CinemaColors.Primary else CinemaColors.TextMuted,
+                        contentDescription = "Mở danh sách",
+                        tint = if (hasValue) CinemaColors.Primary else CinemaColors.TextSecondary,
                         modifier = Modifier
                             .size(20.dp)
                             .rotate(arrowRotation),
@@ -470,28 +588,28 @@ private fun <T> CinemaDropdownField(
             }
         }
 
-        // Popover Dropdown Menu
+        // The Dropdown Menu
         DropdownMenu(
             expanded = isExpanded,
             onDismissRequest = { isExpanded = false },
             modifier = Modifier
+                .widthIn(min = 180.dp, max = 280.dp)
                 .heightIn(max = 340.dp)
-                .widthIn(min = 180.dp)
                 .background(Color(0xFF14141E))
                 .border(1.dp, CinemaColors.BorderSubtle, RoundedCornerShape(12.dp)),
         ) {
-            // "Tất cả" (Default / Clear) Option
-            val isDefault = !hasValue
+            // "All / Clear" option item
             DropdownMenuItem(
                 text = {
                     Text(
                         text = "Tất cả",
-                        color = if (isDefault) CinemaColors.Primary else Color.White,
-                        fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Normal,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (!hasValue) CinemaColors.Primary else CinemaColors.TextSecondary,
+                        fontWeight = if (!hasValue) FontWeight.Bold else FontWeight.Normal,
                     )
                 },
                 trailingIcon = {
-                    if (isDefault) {
+                    if (!hasValue) {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
@@ -500,23 +618,25 @@ private fun <T> CinemaDropdownField(
                         )
                     }
                 },
+                colors = MenuDefaults.itemColors(
+                    textColor = Color.White,
+                ),
                 onClick = {
                     onClear()
                     isExpanded = false
                 },
-                colors = MenuDefaults.itemColors(
-                    textColor = Color.White,
-                ),
             )
 
             // Dynamic items
             items.forEach { item ->
                 val selected = isSelected(item)
+                val itemText = itemLabel(item)
                 DropdownMenuItem(
                     text = {
                         Text(
-                            text = itemLabel(item),
-                            color = if (selected) CinemaColors.Primary else Color.White,
+                            text = itemText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (selected) Color.White else CinemaColors.TextPrimary,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                         )
                     },
@@ -530,13 +650,16 @@ private fun <T> CinemaDropdownField(
                             )
                         }
                     },
+                    colors = MenuDefaults.itemColors(
+                        textColor = Color.White,
+                    ),
+                    modifier = Modifier.background(
+                        if (selected) CinemaColors.Primary.copy(alpha = 0.12f) else Color.Transparent,
+                    ),
                     onClick = {
                         onSelect(item)
                         isExpanded = false
                     },
-                    colors = MenuDefaults.itemColors(
-                        textColor = Color.White,
-                    ),
                 )
             }
         }
@@ -544,7 +667,7 @@ private fun <T> CinemaDropdownField(
 }
 
 /**
- * Chip pill to quickly display and dismiss an active filter.
+ * Filter Chip pill that can be tapped to immediately remove the filter.
  */
 @Composable
 private fun ActiveFilterPill(
@@ -553,11 +676,10 @@ private fun ActiveFilterPill(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(CinemaColors.PrimaryContainer)
-            .border(1.dp, CinemaColors.Primary.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
-            .clickable(onClick = onRemove)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+            .clip(RoundedCornerShape(16.dp))
+            .background(CinemaColors.Primary.copy(alpha = 0.16f))
+            .border(1.dp, CinemaColors.Primary.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+            .padding(start = 10.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(
@@ -572,9 +694,12 @@ private fun ActiveFilterPill(
             )
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Xóa bộ lọc $label",
-                tint = Color.White.copy(alpha = 0.7f),
-                modifier = Modifier.size(13.dp),
+                contentDescription = "Xóa lọc",
+                tint = CinemaColors.Primary,
+                modifier = Modifier
+                    .size(14.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onRemove),
             )
         }
     }
