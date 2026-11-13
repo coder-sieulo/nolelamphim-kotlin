@@ -68,7 +68,8 @@ class WatchViewModel(
                         movieName = detail.name,
                         episodeName = episode.name.ifBlank { "Tập ${episodeIdx + 1}" },
                         embedUrl = episode.embedUrl,
-                        playbackUrl = repository.resolveStreamUrl(episode.embedUrl) ?: episode.embedUrl,
+                        playbackUrl = episode.m3u8Url?.takeIf { it.isNotBlank() }
+                            ?: (repository.resolveStreamUrl(episode.embedUrl) ?: episode.embedUrl),
                         hasNextEpisode = episodeIdx + 1 < server.episodes.size,
                         isFavorite = localLibrary.isFavorite(slug),
                         related = relatedMovies,

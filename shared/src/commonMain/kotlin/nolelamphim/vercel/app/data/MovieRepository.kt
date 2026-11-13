@@ -2,6 +2,7 @@ package nolelamphim.vercel.app.data
 
 import kotlinx.coroutines.CancellationException
 import nolelamphim.vercel.app.data.remote.MovieApi
+import nolelamphim.vercel.app.data.remote.MultiSourceService
 import nolelamphim.vercel.app.data.remote.dto.MovieDetailDto
 import nolelamphim.vercel.app.data.remote.dto.MovieListResponse
 import nolelamphim.vercel.app.data.remote.dto.MovieSummaryDto
@@ -12,7 +13,10 @@ import nolelamphim.vercel.app.model.EpisodeServer
 import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.model.MovieDetail
 
-class MovieRepository(private val api: MovieApi) {
+class MovieRepository(
+    private val api: MovieApi,
+    private val multiSourceService: MultiSourceService? = null,
+) {
 
     suspend fun latest(page: Int = 1): List<Movie> =
         api.latest(page).items.map { it.toMovie() }
@@ -29,7 +33,7 @@ class MovieRepository(private val api: MovieApi) {
         api.filtered(category, country, year, page).items.map { it.toMovie() }
 
     suspend fun search(keyword: String, page: Int = 1): List<Movie> =
-        api.search(keyword, page).items.map { it.toMovie() }
+        searchPage(keyword, page).movies
 
     suspend fun latestPage(page: Int = 1): MoviePage =
         api.latest(page).toPage(page)
@@ -45,8 +49,31 @@ class MovieRepository(private val api: MovieApi) {
     ): MoviePage =
         api.filtered(category, country, year, page).toPage(page)
 
-    suspend fun searchPage(keyword: String, page: Int = 1): MoviePage =
-        api.search(keyword, page).toPage(page)
+    suspend fun searchPage(keyword: String, page: Int = 1): MoviePage {
+        val basePage = try {
+            api.search(keyword, page).toPage(page)
+        } catch (_: Exception) {
+            MoviePage(emptyList(), page, 1, 0)
+        }
+
+        if (page > 1) return basePage
+
+        val altMovies = try {
+            multiSourceService?.searchAlternativeSources(keyword).orEmpty()
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        if (altMovies.isEmpty()) return basePage
+
+        val combinedMovies = (basePage.movies + altMovies)
+            .distinctBy { it.slug }
+
+        return basePage.copy(
+            movies = combinedMovies,
+            totalItems = basePage.totalItems + altMovies.size,
+        )
+    }
 
     suspend fun relatedMovies(slug: String, categorySlug: String?): List<Movie> {
         if (categorySlug.isNullOrBlank()) return emptyList()
@@ -55,7 +82,27 @@ class MovieRepository(private val api: MovieApi) {
 
     suspend fun detail(slug: String): MovieDetail {
         val response = api.detail(slug)
-        return response.movie.toDetail(response.episodes)
+        val baseDetail = response.movie.toDetail(response.episodes)
+
+        val altServers = try {
+            multiSourceService?.resolveAlternativeServers(slug, baseDetail.name).orEmpty()
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        if (altServers.isEmpty()) return baseDetail
+
+        // Merge servers: KKPhim VIP HLS first (fast native m3u8), then VSMov, then NguonC
+        val mergedServers = buildList {
+            // 1. KKPhim (HLS VIP) servers
+            addAll(altServers.filter { it.name.startsWith("KKPhim") })
+            // 2. VSMov servers
+            addAll(baseDetail.servers)
+            // 3. NguonC backup servers
+            addAll(altServers.filter { it.name.startsWith("NguonC") })
+        }
+
+        return baseDetail.copy(servers = mergedServers)
     }
 
     /**
