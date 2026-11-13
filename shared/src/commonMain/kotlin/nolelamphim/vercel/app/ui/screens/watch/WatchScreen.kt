@@ -7,11 +7,14 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +52,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Star
@@ -74,6 +78,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -83,6 +88,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nolelamphim.vercel.app.di.AppContainer
+import nolelamphim.vercel.app.model.EpisodeServer
 import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.model.MovieDetail
 import nolelamphim.vercel.app.ui.components.ErrorView
@@ -90,6 +96,7 @@ import nolelamphim.vercel.app.ui.components.LoadingView
 import nolelamphim.vercel.app.ui.components.MovieRow
 import nolelamphim.vercel.app.ui.components.SetScreenFullscreen
 import nolelamphim.vercel.app.ui.components.VideoPlayer
+import nolelamphim.vercel.app.ui.components.VideoResizeMode
 import nolelamphim.vercel.app.ui.theme.CinemaColors
 import nolelamphim.vercel.app.ui.theme.LocalIsTv
 import nolelamphim.vercel.app.ui.theme.bounceClick
@@ -182,14 +189,32 @@ private fun MobileWatchLayout(
     var isFullscreen by remember { mutableStateOf(false) }
     var isOverlayVisible by remember { mutableStateOf(true) }
     var isEpisodeDrawerOpen by remember { mutableStateOf(false) }
+    var isSettingsOpen by remember { mutableStateOf(false) }
+    var playbackSpeed by remember { mutableStateOf(1.0f) }
+    var resizeMode by remember { mutableStateOf(VideoResizeMode.FIT) }
+    var seekDelta by remember { mutableStateOf(0L) }
+    var seekFeedbackText by remember { mutableStateOf<String?>(null) }
+    var seekFeedbackSide by remember { mutableStateOf<Alignment>(Alignment.Center) }
     var isDescriptionExpanded by remember { mutableStateOf(false) }
     var selectedServerIdx by remember(state.currentServerIndex) {
         mutableStateOf(state.currentServerIndex)
     }
 
-    // Auto-hide overlay in fullscreen mode after 4 seconds if drawer is closed
-    LaunchedEffect(isFullscreen, isOverlayVisible, isEpisodeDrawerOpen) {
-        if (isFullscreen && isOverlayVisible && !isEpisodeDrawerOpen) {
+    val gestureScope = rememberCoroutineScope()
+    fun triggerSeek(delta: Long, isForward: Boolean) {
+        seekDelta = delta
+        seekFeedbackText = if (isForward) "+10s »" else "« 10s"
+        seekFeedbackSide = if (isForward) Alignment.CenterEnd else Alignment.CenterStart
+        gestureScope.launch {
+            delay(650)
+            seekFeedbackText = null
+            seekDelta = 0L
+        }
+    }
+
+    // Auto-hide overlay in fullscreen mode after 4 seconds if drawer & settings are closed
+    LaunchedEffect(isFullscreen, isOverlayVisible, isEpisodeDrawerOpen, isSettingsOpen) {
+        if (isFullscreen && isOverlayVisible && !isEpisodeDrawerOpen && !isSettingsOpen) {
             delay(4000)
             isOverlayVisible = false
         }
@@ -204,14 +229,70 @@ private fun MobileWatchLayout(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .clickable { isOverlayVisible = !isOverlayVisible },
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            isOverlayVisible = !isOverlayVisible
+                        },
+                        onDoubleTap = { offset ->
+                            val width = size.width
+                            if (offset.x < width * 0.38f) {
+                                triggerSeek(-10000L, isForward = false)
+                            } else if (offset.x > width * 0.62f) {
+                                triggerSeek(10000L, isForward = true)
+                            } else {
+                                isOverlayVisible = !isOverlayVisible
+                            }
+                        },
+                    )
+                },
         ) {
             // Video Player taking 100% of the screen
             VideoPlayer(
                 url = state.playbackUrl,
                 fallbackUrl = state.embedUrl,
                 modifier = Modifier.fillMaxSize(),
+                playbackSpeed = playbackSpeed,
+                resizeMode = resizeMode,
+                seekDelta = seekDelta,
             )
+
+            // Animated Double-Tap Seek Feedback Badge
+            AnimatedVisibility(
+                visible = seekFeedbackText != null,
+                enter = fadeIn(tween(120)) + scaleIn(tween(180)),
+                exit = fadeOut(tween(220)) + scaleOut(tween(180)),
+                modifier = Modifier
+                    .align(seekFeedbackSide)
+                    .padding(horizontal = 64.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.82f))
+                        .border(1.5.dp, CinemaColors.Primary, CircleShape)
+                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (seekFeedbackSide == Alignment.CenterEnd) Icons.Default.FastForward else Icons.Default.FastRewind,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Text(
+                            text = seekFeedbackText ?: "",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
+                    }
+                }
+            }
 
             // Floating Cinema Controls Overlay
             AnimatedVisibility(
@@ -337,8 +418,8 @@ private fun MobileWatchLayout(
                             .align(Alignment.BottomCenter),
                     )
 
-                    // Bottom Floating Actions (when drawer is closed)
-                    if (!isEpisodeDrawerOpen) {
+                    // Bottom Floating Actions (when drawer & settings are closed)
+                    if (!isEpisodeDrawerOpen && !isSettingsOpen) {
                         Row(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
@@ -346,6 +427,22 @@ private fun MobileWatchLayout(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            // Quick Settings Button
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color.Black.copy(alpha = 0.65f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                    .bounceClick { isSettingsOpen = true }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Cài đặt", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
                             // Episode Drawer Button
                             Box(
                                 modifier = Modifier
@@ -400,131 +497,229 @@ private fun MobileWatchLayout(
                             onClose = { isEpisodeDrawerOpen = false },
                         )
                     }
+
+                    // Quick Settings Sheet in Fullscreen
+                    AnimatedVisibility(
+                        visible = isSettingsOpen,
+                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    ) {
+                        PlayerQuickSettingsSheet(
+                            playbackSpeed = playbackSpeed,
+                            onPlaybackSpeedChange = { playbackSpeed = it },
+                            resizeMode = resizeMode,
+                            onResizeModeChange = { resizeMode = it },
+                            servers = state.movie.servers,
+                            currentServerIndex = state.currentServerIndex,
+                            onSelectServer = { serverIdx ->
+                                onSelectEpisode(serverIdx, 0)
+                                isSettingsOpen = false
+                            },
+                            onClose = { isSettingsOpen = false },
+                        )
+                    }
                 }
             }
         }
     } else {
         // --- NORMAL PORTRAIT LAYOUT ---
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Sticky Top Video Player Area
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black),
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // Safe Area status bar spacer for seamless immersion
-                    Spacer(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding(),
-                    )
-
-                    // 16:9 Video Player Container
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9f)
-                            .background(Color.Black),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        VideoPlayer(
-                            url = state.playbackUrl,
-                            fallbackUrl = state.embedUrl,
-                            modifier = Modifier.fillMaxSize(),
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Sticky Top Video Player Area
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black),
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        // Safe Area status bar spacer for seamless immersion
+                        Spacer(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .statusBarsPadding(),
                         )
 
-                        // Floating Fullscreen Trigger Button (Bottom-Right of Video)
+                        // 16:9 Video Player Container with Double-Tap Seek Gestures
                         Box(
                             modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(10.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Black.copy(alpha = 0.70f))
-                                .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-                                .bounceClick { isFullscreen = true }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
+                                .background(Color.Black)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onDoubleTap = { offset ->
+                                            val width = size.width
+                                            if (offset.x < width * 0.38f) {
+                                                triggerSeek(-10000L, isForward = false)
+                                            } else if (offset.x > width * 0.62f) {
+                                                triggerSeek(10000L, isForward = true)
+                                            }
+                                        },
+                                    )
+                                },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            VideoPlayer(
+                                url = state.playbackUrl,
+                                fallbackUrl = state.embedUrl,
+                                modifier = Modifier.fillMaxSize(),
+                                playbackSpeed = playbackSpeed,
+                                resizeMode = resizeMode,
+                                seekDelta = seekDelta,
+                            )
+
+                            // Animated Double-Tap Seek Feedback Badge in Portrait
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = seekFeedbackText != null,
+                                enter = fadeIn(tween(120)) + scaleIn(tween(180)),
+                                exit = fadeOut(tween(220)) + scaleOut(tween(180)),
+                                modifier = Modifier
+                                    .align(seekFeedbackSide)
+                                    .padding(horizontal = 28.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.85f))
+                                        .border(1.5.dp, CinemaColors.Primary, CircleShape)
+                                        .padding(horizontal = 20.dp, vertical = 11.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = if (seekFeedbackSide == Alignment.CenterEnd) Icons.Default.FastForward else Icons.Default.FastRewind,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                        Text(
+                                            text = seekFeedbackText ?: "",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.ExtraBold,
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Floating Fullscreen Trigger Button (Bottom-Right of Video)
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(10.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Black.copy(alpha = 0.70f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                                    .bounceClick { isFullscreen = true }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Fullscreen,
+                                        contentDescription = "Mở toàn màn hình",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Text(
+                                        text = "Toàn màn hình",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // In-Player Floating Top Bar (Back button + VIP Server badge + Settings)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.55f))
+                                .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "Quay lại",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            // VIP Server badge pill
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color.Black.copy(alpha = 0.6f))
+                                    .border(1.dp, CinemaColors.Primary.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(CinemaColors.GreenBadge),
+                                    )
+                                    Text(
+                                        text = state.movie.servers.getOrNull(state.currentServerIndex)?.name?.ifBlank { "VIP Server" }
+                                            ?: "VIP Server",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                    )
+                                }
+                            }
+
+                            // Settings Icon Button in Top Bar
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.55f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                                    .bounceClick { isSettingsOpen = true },
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Fullscreen,
-                                    contentDescription = "Mở toàn màn hình",
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Cài đặt trình phát",
                                     tint = Color.White,
                                     modifier = Modifier.size(18.dp),
-                                )
-                                Text(
-                                    text = "Toàn màn hình",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
                                 )
                             }
                         }
                     }
                 }
-
-                // In-Player Floating Top Bar (Back button + Title overlay)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.55f))
-                            .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Quay lại",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    }
-
-                    // VIP Server badge pill
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color.Black.copy(alpha = 0.6f))
-                            .border(1.dp, CinemaColors.Primary.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(CinemaColors.GreenBadge),
-                            )
-                            Text(
-                                text = state.movie.servers.getOrNull(state.currentServerIndex)?.name?.ifBlank { "VIP Server" }
-                                    ?: "VIP Server",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                            )
-                        }
-                    }
-                }
-            }
 
         // Scrollable Media Hub beneath the Video Player
         LazyColumn(
@@ -691,6 +886,36 @@ private fun MobileWatchLayout(
                         }
                     }
 
+                    // Quick Settings Button
+                    Box(
+                        modifier = Modifier
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(CinemaColors.SurfaceCard)
+                            .border(1.dp, CinemaColors.BorderSubtle, RoundedCornerShape(12.dp))
+                            .bounceClick(onClick = { isSettingsOpen = true })
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Cài đặt",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Text(
+                                text = "Cài đặt",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+
                     // Share Button
                     Box(
                         modifier = Modifier
@@ -846,10 +1071,33 @@ private fun MobileWatchLayout(
                     )
                 }
             }
-        }
+        } // Close LazyColumn
+    } // Close Column
+
+    // Quick Settings Sheet in Portrait
+    AnimatedVisibility(
+        visible = isSettingsOpen,
+        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+        modifier = Modifier.align(Alignment.BottomCenter),
+    ) {
+        PlayerQuickSettingsSheet(
+            playbackSpeed = playbackSpeed,
+            onPlaybackSpeedChange = { playbackSpeed = it },
+            resizeMode = resizeMode,
+            onResizeModeChange = { resizeMode = it },
+            servers = state.movie.servers,
+            currentServerIndex = state.currentServerIndex,
+            onSelectServer = { serverIdx: Int ->
+                onSelectEpisode(serverIdx, 0)
+                isSettingsOpen = false
+            },
+            onClose = { isSettingsOpen = false },
+        )
     }
-}
-}
+} // Close Box
+} // Close if/else
+} // Close MobileWatchLayout
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1426,6 +1674,219 @@ private fun TvEpisodeDrawerSheet(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerQuickSettingsSheet(
+    playbackSpeed: Float,
+    onPlaybackSpeedChange: (Float) -> Unit,
+    resizeMode: VideoResizeMode,
+    onResizeModeChange: (VideoResizeMode) -> Unit,
+    servers: List<EpisodeServer>,
+    currentServerIndex: Int,
+    onSelectServer: (Int) -> Unit,
+    onClose: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.65f))
+            .clickable(onClick = onClose),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(Color(0xFF13131D))
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                )
+                .clickable(enabled = false) {}
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            // Header: Title & Close
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = null,
+                        tint = CinemaColors.Primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Text(
+                        text = "Cài đặt trình phát",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .bounceClick(onClick = onClose),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Đóng",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+
+            // Section 1: Playback Speed
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "TỐC ĐỘ PHÁT",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CinemaColors.TextMuted,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp,
+                )
+                val speeds = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    speeds.forEach { speed ->
+                        val isSelected = playbackSpeed == speed
+                        val speedLabel = if (speed == 1.0f) "1.0x" else "${speed}x"
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) CinemaColors.Primary else Color.White.copy(alpha = 0.08f))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) CinemaColors.Primary else Color.White.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(8.dp),
+                                )
+                                .bounceClick { onPlaybackSpeedChange(speed) }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = speedLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Section 2: Aspect Ratio
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "TỈ LỆ KHUNG HÌNH",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CinemaColors.TextMuted,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    VideoResizeMode.entries.forEach { mode ->
+                        val isSelected = resizeMode == mode
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) CinemaColors.Primary else Color.White.copy(alpha = 0.08f))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) CinemaColors.Primary else Color.White.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(8.dp),
+                                )
+                                .bounceClick { onResizeModeChange(mode) }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = mode.displayName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Section 3: Máy chủ phát nhanh (Fast Server Switcher)
+            if (servers.size > 1) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "MÁY CHỦ PHÁT (CHUYỂN NHANH)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CinemaColors.TextMuted,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        itemsIndexed(servers) { idx, srv ->
+                            val isSelected = idx == currentServerIndex
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) CinemaColors.Primary else Color.White.copy(alpha = 0.08f))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) CinemaColors.Primary else Color.White.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(8.dp),
+                                    )
+                                    .bounceClick { onSelectServer(idx) }
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                    }
+                                    Text(
+                                        text = srv.name.ifBlank { "Server ${idx + 1}" },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

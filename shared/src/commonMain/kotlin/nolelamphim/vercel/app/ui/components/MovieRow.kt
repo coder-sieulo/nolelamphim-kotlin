@@ -208,14 +208,20 @@ private fun TopRankingItem(
 ) {
     var isCardFocused by remember { mutableStateOf(false) }
 
-    val rankColor by animateColorAsState(
-        targetValue = if (isCardFocused) Color(0xFFFF4D4D) else Color.White.copy(alpha = 0.22f),
+    val rankFrontColor by animateColorAsState(
+        targetValue = if (isCardFocused) Color(0xFFFF2E2E) else Color(0xFFE2E8F0).copy(alpha = 0.38f),
         animationSpec = tween(durationMillis = 220),
-        label = "rank-color",
+        label = "rank-front-color",
+    )
+
+    val rankShadowColor by animateColorAsState(
+        targetValue = if (isCardFocused) Color(0xFF550000) else Color.Black.copy(alpha = 0.75f),
+        animationSpec = tween(durationMillis = 220),
+        label = "rank-shadow-color",
     )
 
     val rankScale by animateFloatAsState(
-        targetValue = if (isCardFocused) (if (isTv) 1.12f else 1.06f) else 1f,
+        targetValue = if (isCardFocused) (if (isTv) 1.14f else 1.08f) else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMediumLow,
@@ -226,16 +232,35 @@ private fun TopRankingItem(
     Box(
         modifier = Modifier.width(if (isTv) 200.dp else 160.dp),
     ) {
-        // Stylized giant background number that reacts to card focus
+        val fontSize = if (isTv) 104.sp else 86.sp
+        val lineHeight = if (isTv) 98.sp else 80.sp
+
+        // Layer 1: Deep 3D drop-extrusion shadow
         Text(
             text = rank.toString(),
-            fontSize = if (isTv) 100.sp else 82.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.Black,
-            color = rankColor,
-            lineHeight = if (isTv) 95.sp else 78.sp,
+            color = rankShadowColor,
+            lineHeight = lineHeight,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = (-4).dp, y = (-12).dp)
+                .offset(x = (-2).dp, y = (-9).dp)
+                .graphicsLayer {
+                    scaleX = rankScale
+                    scaleY = rankScale
+                },
+        )
+
+        // Layer 2: Main metallic / neon extruded front layer
+        Text(
+            text = rank.toString(),
+            fontSize = fontSize,
+            fontWeight = FontWeight.Black,
+            color = rankFrontColor,
+            lineHeight = lineHeight,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-6).dp, y = (-13).dp)
                 .graphicsLayer {
                     scaleX = rankScale
                     scaleY = rankScale

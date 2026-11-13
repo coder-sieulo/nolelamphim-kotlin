@@ -37,6 +37,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -113,7 +115,7 @@ fun HeroBannerCarousel(
                     modifier = Modifier.fillMaxSize(),
                 )
 
-                // Multi-directional cinematic gradients
+                // Multi-directional cinematic gradients & ambient glow
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -123,6 +125,21 @@ fun HeroBannerCarousel(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(CinemaColors.HeroOverlayGradient),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    CinemaColors.Primary.copy(alpha = 0.32f),
+                                    Color(0xFF6B0000).copy(alpha = 0.18f),
+                                    Color.Transparent,
+                                ),
+                                center = Offset(Float.POSITIVE_INFINITY, 0f),
+                                radius = 1200f,
+                            ),
+                        ),
                 )
 
                 // Movie Info & Actions
@@ -234,14 +251,23 @@ fun HeroBannerCarousel(
                                     focusedBorderColor = Color.White,
                                 )
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(CinemaColors.Primary)
-                                .padding(horizontal = 22.dp, vertical = 12.dp),
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(CinemaColors.Primary, Color(0xFFB70606)),
+                                    ),
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = Color(0xFFFF6666).copy(alpha = 0.45f),
+                                    shape = RoundedCornerShape(12.dp),
+                                )
+                                .padding(horizontal = 24.dp, vertical = 13.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Xem ngay", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("Xem ngay", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
                             }
                         }
 
@@ -254,15 +280,15 @@ fun HeroBannerCarousel(
                                     focusedBorderColor = CinemaColors.NeonCyan,
                                 )
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.12f))
-                                .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                                .background(Color.White.copy(alpha = 0.14f))
+                                .border(1.dp, Color.White.copy(alpha = 0.30f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 22.dp, vertical = 13.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Info, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Chi tiết", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                Text("Chi tiết", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
                         }
                     }

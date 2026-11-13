@@ -4,6 +4,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -22,18 +23,37 @@ import androidx.media3.ui.PlayerView
 import nolelamphim.vercel.app.data.stream.StreamUrlResolver
 
 @Composable
-actual fun VideoPlayer(url: String, fallbackUrl: String?, modifier: Modifier) {
+actual fun VideoPlayer(
+    url: String,
+    fallbackUrl: String?,
+    modifier: Modifier,
+    playbackSpeed: Float,
+    resizeMode: VideoResizeMode,
+    seekDelta: Long,
+) {
     val streamUrl = remember(url) { StreamUrlResolver.resolve(url) }
     if (streamUrl == null) {
         // Unknown source shape: keep the original page player as a safety net.
         EmbeddedWebPlayer(url = fallbackUrl ?: url, modifier = modifier)
     } else {
-        NativeVideoPlayer(streamUrl = streamUrl, modifier = modifier)
+        NativeVideoPlayer(
+            streamUrl = streamUrl,
+            modifier = modifier,
+            playbackSpeed = playbackSpeed,
+            resizeMode = resizeMode,
+            seekDelta = seekDelta,
+        )
     }
 }
 
 @Composable
-private fun NativeVideoPlayer(streamUrl: String, modifier: Modifier) {
+private fun NativeVideoPlayer(
+    streamUrl: String,
+    modifier: Modifier,
+    playbackSpeed: Float,
+    resizeMode: VideoResizeMode,
+    seekDelta: Long,
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -59,6 +79,23 @@ private fun NativeVideoPlayer(streamUrl: String, modifier: Modifier) {
             }
     }
 
+    LaunchedEffect(player, playbackSpeed) {
+        player.setPlaybackSpeed(playbackSpeed)
+    }
+
+    LaunchedEffect(seekDelta) {
+        if (seekDelta != 0L) {
+            val currentPos = player.currentPosition
+            val totalDuration = player.duration.coerceAtLeast(0L)
+            val target = if (totalDuration > 0L) {
+                (currentPos + seekDelta).coerceIn(0L, totalDuration)
+            } else {
+                (currentPos + seekDelta).coerceAtLeast(0L)
+            }
+            player.seekTo(target)
+        }
+    }
+
     DisposableEffect(player) {
         onDispose { player.release() }
     }
@@ -73,6 +110,12 @@ private fun NativeVideoPlayer(streamUrl: String, modifier: Modifier) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    val exoResizeMode = when (resizeMode) {
+        VideoResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        VideoResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+        VideoResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    }
+
     AndroidView(
         modifier = modifier,
         factory = { viewContext ->
@@ -81,13 +124,16 @@ private fun NativeVideoPlayer(streamUrl: String, modifier: Modifier) {
                 useController = true
                 keepScreenOn = true
                 setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                this.resizeMode = exoResizeMode
                 setControllerShowTimeoutMs(3000)
             }
         },
         update = { view ->
             if (view.player !== player) {
                 view.player = player
+            }
+            if (view.resizeMode != exoResizeMode) {
+                view.resizeMode = exoResizeMode
             }
         },
     )
