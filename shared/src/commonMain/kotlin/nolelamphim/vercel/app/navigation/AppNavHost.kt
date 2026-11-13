@@ -10,9 +10,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
+import nolelamphim.shared.generated.resources.Res
+import nolelamphim.shared.generated.resources.nolelamphim_logo
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -421,16 +426,19 @@ private fun TvSideNavigationRail(
         // App Logo
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(46.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(CinemaColors.Primary),
+                .background(Color(0xFF14141E))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.Default.Movie,
-                contentDescription = "Logo",
-                tint = Color.White,
-                modifier = Modifier.size(26.dp),
+            Image(
+                painter = painterResource(Res.drawable.nolelamphim_logo),
+                contentDescription = "Nô Lệ Làm Phim",
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Fit,
             )
         }
 

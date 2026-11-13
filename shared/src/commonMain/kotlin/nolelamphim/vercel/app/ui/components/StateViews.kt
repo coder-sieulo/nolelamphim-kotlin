@@ -6,8 +6,13 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.layout.ContentScale
+import nolelamphim.shared.generated.resources.Res
+import nolelamphim.shared.generated.resources.nolelamphim_logo
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,19 +75,27 @@ fun LoadingView(
         ) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(72.dp),
+                modifier = Modifier.size(76.dp),
             ) {
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(68.dp)
                         .scale(pulseScale)
                         .clip(CircleShape)
-                        .background(CinemaColors.Primary.copy(alpha = 0.15f)),
+                        .background(CinemaColors.Primary.copy(alpha = 0.18f)),
+                )
+                Image(
+                    painter = painterResource(Res.drawable.nolelamphim_logo),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                    contentScale = ContentScale.Fit,
                 )
                 CircularProgressIndicator(
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(68.dp),
                     color = CinemaColors.Primary,
-                    strokeWidth = 3.5.dp,
+                    strokeWidth = 2.5.dp,
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -185,15 +198,19 @@ fun EmptyView(
             Box(
                 modifier = Modifier
                     .size(68.dp)
-                    .clip(CircleShape)
-                    .background(CinemaColors.SurfaceElevated),
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CinemaColors.SurfaceElevated)
+                    .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Movie,
+                Image(
+                    painter = painterResource(Res.drawable.nolelamphim_logo),
                     contentDescription = null,
-                    tint = CinemaColors.TextMuted,
-                    modifier = Modifier.size(34.dp),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .alpha(0.65f)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Fit,
                 )
             }
             Spacer(Modifier.height(16.dp))

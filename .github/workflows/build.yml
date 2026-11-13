@@ -1,11 +1,6 @@
 name: Build Multiplatform (Mobile APK, TV APK, Unsigned IPA)
 
 on:
-  push:
-    branches: [ main, master, feat/** ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       build_android:
@@ -18,6 +13,8 @@ on:
         required: true
         type: boolean
         default: true
+  push:
+    tags: [ 'v*' ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
