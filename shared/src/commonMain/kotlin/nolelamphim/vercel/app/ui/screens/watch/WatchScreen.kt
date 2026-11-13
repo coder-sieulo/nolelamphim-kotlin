@@ -47,6 +47,8 @@ import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Star
@@ -86,6 +88,7 @@ import nolelamphim.vercel.app.model.MovieDetail
 import nolelamphim.vercel.app.ui.components.ErrorView
 import nolelamphim.vercel.app.ui.components.LoadingView
 import nolelamphim.vercel.app.ui.components.MovieRow
+import nolelamphim.vercel.app.ui.components.SetScreenFullscreen
 import nolelamphim.vercel.app.ui.components.VideoPlayer
 import nolelamphim.vercel.app.ui.theme.CinemaColors
 import nolelamphim.vercel.app.ui.theme.LocalIsTv
@@ -176,99 +179,352 @@ private fun MobileWatchLayout(
     onMovieClick: (slug: String) -> Unit,
     onShowMessage: (String) -> Unit,
 ) {
+    var isFullscreen by remember { mutableStateOf(false) }
+    var isOverlayVisible by remember { mutableStateOf(true) }
+    var isEpisodeDrawerOpen by remember { mutableStateOf(false) }
     var isDescriptionExpanded by remember { mutableStateOf(false) }
     var selectedServerIdx by remember(state.currentServerIndex) {
         mutableStateOf(state.currentServerIndex)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Sticky Top Video Player Area
+    // Auto-hide overlay in fullscreen mode after 4 seconds if drawer is closed
+    LaunchedEffect(isFullscreen, isOverlayVisible, isEpisodeDrawerOpen) {
+        if (isFullscreen && isOverlayVisible && !isEpisodeDrawerOpen) {
+            delay(4000)
+            isOverlayVisible = false
+        }
+    }
+
+    // Trigger platform-level sensor landscape rotation & immersive bar hiding
+    SetScreenFullscreen(isFullscreen)
+
+    if (isFullscreen) {
+        // --- 100% IMMERSIVE FULLSCREEN MODE (LANDSCAPE) ---
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.Black),
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable { isOverlayVisible = !isOverlayVisible },
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Safe Area status bar spacer for seamless immersion
-                Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding(),
-                )
+            // Video Player taking 100% of the screen
+            VideoPlayer(
+                url = state.playbackUrl,
+                fallbackUrl = state.embedUrl,
+                modifier = Modifier.fillMaxSize(),
+            )
 
-                // 16:9 Video Player Container
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                        .background(Color.Black),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    VideoPlayer(
-                        url = state.playbackUrl,
-                        fallbackUrl = state.embedUrl,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
-
-            // In-Player Floating Top Bar (Back button + Title overlay)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+            // Floating Cinema Controls Overlay
+            AnimatedVisibility(
+                visible = isOverlayVisible || isEpisodeDrawerOpen,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(200)),
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.55f))
-                        .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Quay lại",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Top Gradient Vignette
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color.Black.copy(alpha = 0.85f),
+                                        Color.Transparent,
+                                    ),
+                                ),
+                            )
+                            .align(Alignment.TopCenter),
+                    )
 
-                // VIP Server badge pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .border(1.dp, CinemaColors.Primary.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                ) {
+                    // Top Floating Bar (Exit Fullscreen / Back + Title + VIP Badge)
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopCenter)
+                            .padding(horizontal = 24.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
                     ) {
-                        Box(
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.6f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                                    .bounceClick { isFullscreen = false },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FullscreenExit,
+                                    contentDescription = "Thu nhỏ màn hình",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    text = state.movieName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = state.episodeName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = CinemaColors.Primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
+
+                        // VIP Badge & Quick Exit Button
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(CinemaColors.Primary)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            ) {
+                                Text(
+                                    text = "VIP 1080p",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.Black.copy(alpha = 0.6f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                    .bounceClick { isFullscreen = false }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.FullscreenExit, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Thu nhỏ", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+
+                    // Bottom Gradient Vignette
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.85f),
+                                    ),
+                                ),
+                            )
+                            .align(Alignment.BottomCenter),
+                    )
+
+                    // Bottom Floating Actions (when drawer is closed)
+                    if (!isEpisodeDrawerOpen) {
+                        Row(
                             modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(CinemaColors.GreenBadge),
-                        )
-                        Text(
-                            text = state.movie.servers.getOrNull(state.currentServerIndex)?.name?.ifBlank { "VIP Server" }
-                                ?: "VIP Server",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
+                                .align(Alignment.BottomEnd)
+                                .padding(bottom = 20.dp, end = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            // Episode Drawer Button
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color.Black.copy(alpha = 0.65f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                    .bounceClick { isEpisodeDrawerOpen = true }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Danh sách tập", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // Next Episode Button
+                            if (state.hasNextEpisode) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(CinemaColors.Primary)
+                                        .bounceClick(onClick = onNext)
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.SkipNext, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Tập tiếp theo", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Sliding Episode Drawer (even in fullscreen!)
+                    AnimatedVisibility(
+                        visible = isEpisodeDrawerOpen,
+                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    ) {
+                        TvEpisodeDrawerSheet(
+                            movie = state.movie,
+                            selectedServerIndex = selectedServerIdx,
+                            activeEpisodeIndex = if (selectedServerIdx == state.currentServerIndex) state.currentEpisodeIndex else -1,
+                            onSelectServer = { selectedServerIdx = it },
+                            onSelectEpisode = { epIdx ->
+                                onSelectEpisode(selectedServerIdx, epIdx)
+                                isEpisodeDrawerOpen = false
+                            },
+                            onClose = { isEpisodeDrawerOpen = false },
                         )
                     }
                 }
             }
         }
+    } else {
+        // --- NORMAL PORTRAIT LAYOUT ---
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Sticky Top Video Player Area
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Safe Area status bar spacer for seamless immersion
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding(),
+                    )
+
+                    // 16:9 Video Player Container
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        VideoPlayer(
+                            url = state.playbackUrl,
+                            fallbackUrl = state.embedUrl,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+
+                        // Floating Fullscreen Trigger Button (Bottom-Right of Video)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(10.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black.copy(alpha = 0.70f))
+                                .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                                .bounceClick { isFullscreen = true }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Fullscreen,
+                                    contentDescription = "Mở toàn màn hình",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(
+                                    text = "Toàn màn hình",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // In-Player Floating Top Bar (Back button + Title overlay)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Quay lại",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+
+                    // VIP Server badge pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .border(1.dp, CinemaColors.Primary.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(CinemaColors.GreenBadge),
+                            )
+                            Text(
+                                text = state.movie.servers.getOrNull(state.currentServerIndex)?.name?.ifBlank { "VIP Server" }
+                                    ?: "VIP Server",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                            )
+                        }
+                    }
+                }
+            }
 
         // Scrollable Media Hub beneath the Video Player
         LazyColumn(
@@ -371,6 +627,36 @@ private fun MobileWatchLayout(
                                 text = "Tập tiếp theo",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
+                            )
+                        }
+                    }
+
+                    // Fullscreen Button
+                    Box(
+                        modifier = Modifier
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(CinemaColors.SurfaceCard)
+                            .border(1.dp, CinemaColors.BorderSubtle, RoundedCornerShape(12.dp))
+                            .bounceClick(onClick = { isFullscreen = true })
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Fullscreen,
+                                contentDescription = "Toàn màn hình",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Text(
+                                text = "Phóng to",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                     }
@@ -562,6 +848,7 @@ private fun MobileWatchLayout(
             }
         }
     }
+}
 }
 
 @OptIn(ExperimentalLayoutApi::class)
