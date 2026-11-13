@@ -381,7 +381,7 @@ fun AppNavHost() {
                                 data.episodeIndex,
                                 resumePos,
                             )
-                            MiniPlayerManager.close()
+                            MiniPlayerManager.expand()
                             navController.navigate(
                                 Routes.watch(data.slug, data.serverIndex, data.episodeIndex),
                             ) {

@@ -22,11 +22,20 @@ object MiniPlayerManager {
 
     private val resumePositions = mutableMapOf<String, Long>()
 
+    var onRetainSession: (() -> Unit)? = null
+    var onReleaseSession: (() -> Unit)? = null
+
     fun minimize(data: MiniPlayerData) {
+        onRetainSession?.invoke()
         activePlayer = data
         if (data.positionMs > 0L) {
             setResumePosition(data.slug, data.serverIndex, data.episodeIndex, data.positionMs)
         }
+    }
+
+    fun expand() {
+        onRetainSession?.invoke()
+        activePlayer = null
     }
 
     fun updatePosition(positionMs: Long) {
@@ -59,5 +68,6 @@ object MiniPlayerManager {
             setResumePosition(current.slug, current.serverIndex, current.episodeIndex, current.positionMs)
         }
         activePlayer = null
+        onReleaseSession?.invoke()
     }
 }

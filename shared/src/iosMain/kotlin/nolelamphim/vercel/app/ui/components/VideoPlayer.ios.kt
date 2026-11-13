@@ -20,6 +20,7 @@ actual fun VideoPlayer(
     resizeMode: VideoResizeMode,
     seekDelta: Long,
     initialPositionMs: Long,
+    showControls: Boolean,
     onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)?,
 ) {
     // WebKit plays HLS itself but cannot strip the provider's segment wrapper, so iOS keeps

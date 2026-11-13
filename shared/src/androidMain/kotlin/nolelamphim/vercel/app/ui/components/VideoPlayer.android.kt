@@ -9,15 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
@@ -32,6 +24,7 @@ actual fun VideoPlayer(
     resizeMode: VideoResizeMode,
     seekDelta: Long,
     initialPositionMs: Long,
+    showControls: Boolean,
     onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)?,
 ) {
     val streamUrl = remember(url) { StreamUrlResolver.resolve(url) }
@@ -46,6 +39,7 @@ actual fun VideoPlayer(
             resizeMode = resizeMode,
             seekDelta = seekDelta,
             initialPositionMs = initialPositionMs,
+            showControls = showControls,
             onPositionChanged = onPositionChanged,
         )
     }
@@ -59,34 +53,13 @@ private fun NativeVideoPlayer(
     resizeMode: VideoResizeMode,
     seekDelta: Long,
     initialPositionMs: Long,
+    showControls: Boolean,
     onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)?,
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
 
     val player = remember(streamUrl) {
-        val dataSourceFactory = PngWrappedTsDataSource.Factory(
-            DefaultDataSource.Factory(context),
-        )
-        ExoPlayer.Builder(context)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                    .build(),
-                /* handleAudioFocus = */ true,
-            )
-            .setHandleAudioBecomingNoisy(true)
-            .build()
-            .apply {
-                setMediaItem(MediaItem.fromUri(streamUrl))
-                if (initialPositionMs > 0L) {
-                    seekTo(initialPositionMs)
-                }
-                playWhenReady = true
-                prepare()
-            }
+        SharedPlayerSession.getOrCreate(context, streamUrl, initialPositionMs)
     }
 
     LaunchedEffect(player, playbackSpeed) {
@@ -119,25 +92,20 @@ private fun NativeVideoPlayer(
         }
     }
 
-    DisposableEffect(player) {
+    DisposableEffect(streamUrl) {
         onDispose {
             val cur = player.currentPosition.coerceAtLeast(0L)
             val dur = player.duration.coerceAtLeast(0L)
             if (cur > 0L) {
                 onPositionChanged?.invoke(cur, dur)
             }
-            player.release()
-        }
-    }
-
-    DisposableEffect(lifecycleOwner, player) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
-                player.pause()
+            if (!SharedPlayerSession.isRetained) {
+                SharedPlayerSession.releaseIfUnused(streamUrl)
+            } else {
+                // Was retained for transition (minimizing/expanding), reset flag for next cycle
+                SharedPlayerSession.isRetained = false
             }
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val exoResizeMode = when (resizeMode) {
@@ -151,20 +119,25 @@ private fun NativeVideoPlayer(
         factory = { viewContext ->
             PlayerView(viewContext).apply {
                 this.player = player
-                useController = true
+                useController = showControls
                 keepScreenOn = true
-                setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+                setShowBuffering(if (showControls) PlayerView.SHOW_BUFFERING_WHEN_PLAYING else PlayerView.SHOW_BUFFERING_NEVER)
                 this.resizeMode = exoResizeMode
-                setControllerShowTimeoutMs(3000)
+                if (showControls) {
+                    setControllerShowTimeoutMs(3000)
+                }
             }
         },
         update = { view ->
-            if (view.player !== player) {
+            if (view.player != player) {
                 view.player = player
             }
-            if (view.resizeMode != exoResizeMode) {
-                view.resizeMode = exoResizeMode
-            }
+            view.useController = showControls
+            view.resizeMode = exoResizeMode
+        },
+        onRelease = { view ->
+            // Detach player from view to allow clean surface transition
+            view.player = null
         },
     )
 }
@@ -175,11 +148,10 @@ private fun EmbeddedWebPlayer(url: String, modifier: Modifier) {
         modifier = modifier,
         factory = { context ->
             WebView(context).apply {
-                webViewClient = WebViewClient()
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.mediaPlaybackRequiresUserGesture = false
-                setBackgroundColor(android.graphics.Color.BLACK)
+                webViewClient = WebViewClient()
                 loadUrl(url)
             }
         },
@@ -187,6 +159,10 @@ private fun EmbeddedWebPlayer(url: String, modifier: Modifier) {
             if (webView.url != url) {
                 webView.loadUrl(url)
             }
+        },
+        onRelease = { webView ->
+            webView.stopLoading()
+            webView.destroy()
         },
     )
 }

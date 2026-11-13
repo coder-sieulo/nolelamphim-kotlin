@@ -114,6 +114,7 @@ fun FloatingMiniPlayer(
                     fallbackUrl = data.embedUrl,
                     modifier = Modifier.fillMaxSize(),
                     initialPositionMs = data.positionMs,
+                    showControls = false,
                     onPositionChanged = { cur, _ ->
                         MiniPlayerManager.updatePosition(cur)
                     },
