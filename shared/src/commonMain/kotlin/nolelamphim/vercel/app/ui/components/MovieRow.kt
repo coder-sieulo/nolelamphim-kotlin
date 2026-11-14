@@ -116,7 +116,11 @@ fun MovieRow(
             contentPadding = PaddingValues(horizontal = horizontalPadding),
             horizontalArrangement = Arrangement.spacedBy(if (isTv) 16.dp else 12.dp),
         ) {
-            items(movies, key = { it.id }) { movie ->
+            items(
+                items = movies,
+                key = { it.id },
+                contentType = { "movie_card" },
+            ) { movie ->
                 MovieCard(
                     movie = movie,
                     onClick = { onMovieClick(movie) },
@@ -187,7 +191,11 @@ fun TopRankingRow(
             contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = if (isTv) 12.dp else 4.dp),
             horizontalArrangement = Arrangement.spacedBy(if (isTv) 20.dp else 14.dp),
         ) {
-            itemsIndexed(topMovies, key = { _, movie -> movie.id }) { index, movie ->
+            itemsIndexed(
+                items = topMovies,
+                key = { _, movie -> movie.id },
+                contentType = { _, _ -> "ranking_card" },
+            ) { index, movie ->
                 TopRankingItem(
                     rank = index + 1,
                     movie = movie,
@@ -352,7 +360,11 @@ fun BackdropMovieRow(
             contentPadding = PaddingValues(horizontal = horizontalPadding),
             horizontalArrangement = Arrangement.spacedBy(if (isTv) 16.dp else 12.dp),
         ) {
-            items(movies, key = { it.id }) { movie ->
+            items(
+                items = movies,
+                key = { it.id },
+                contentType = { "backdrop_movie_card" },
+            ) { movie ->
                 BackdropMovieCard(
                     movie = movie,
                     onClick = { onMovieClick(movie) },

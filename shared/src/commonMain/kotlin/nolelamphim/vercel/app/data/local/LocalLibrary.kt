@@ -1,5 +1,6 @@
 package nolelamphim.vercel.app.data.local
 
+import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,6 +13,7 @@ import nolelamphim.vercel.app.model.Episode
 import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.model.MovieDetail
 
+@Immutable
 @Serializable
 data class FavoriteMovie(
     val id: Int,
@@ -22,6 +24,7 @@ data class FavoriteMovie(
     val rating: Double = 0.0,
 )
 
+@Immutable
 @Serializable
 data class WatchEntry(
     val id: Int,

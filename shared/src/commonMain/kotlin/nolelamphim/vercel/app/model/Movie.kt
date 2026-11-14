@@ -1,5 +1,8 @@
 package nolelamphim.vercel.app.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class Movie(
     val id: Int,
     val name: String,

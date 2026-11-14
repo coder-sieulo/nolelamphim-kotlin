@@ -103,9 +103,26 @@ class WatchViewModel(
         _uiState.value = s.copy(isFavorite = localLibrary.isFavorite(slug))
     }
 
+    private var lastSavedPositionMs: Long = 0L
+    private var latestPositionMs: Long = 0L
+    private var latestDurationMs: Long = 0L
+
     fun updateProgress(positionMs: Long, durationMs: Long) {
-        if (positionMs > 0L) {
+        if (positionMs <= 0L) return
+        latestPositionMs = positionMs
+        latestDurationMs = durationMs
+        // Throttle disk writes: persist to storage at most once every 5 seconds
+        if (kotlin.math.abs(positionMs - lastSavedPositionMs) >= 5000L) {
+            lastSavedPositionMs = positionMs
             localLibrary.updateProgress(slug, currentServerIdx, currentEpisodeIdx, positionMs, durationMs)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Guarantee final playback position is persisted when user navigates away
+        if (latestPositionMs > 0L && latestPositionMs != lastSavedPositionMs) {
+            localLibrary.updateProgress(slug, currentServerIdx, currentEpisodeIdx, latestPositionMs, latestDurationMs)
         }
     }
 }

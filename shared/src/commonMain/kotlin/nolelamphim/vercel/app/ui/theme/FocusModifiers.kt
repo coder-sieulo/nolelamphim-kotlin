@@ -66,12 +66,8 @@ fun Modifier.cinemaFocusable(
         label = "cinema-focus-scale",
     )
 
-    val animatedBorderColor by animateColorAsState(
-        targetValue = if (isFocused) focusedBorderColor else Color.White.copy(alpha = 0.08f),
-        animationSpec = tween(durationMillis = 100),
-        label = "cinema-focus-border-color",
-    )
-
+    // Snappy border highlight: instant response on D-pad with zero frame-by-frame recomposition
+    val effectiveBorderColor = if (isFocused) focusedBorderColor else Color.White.copy(alpha = 0.08f)
     val currentBorderWidth = if (isFocused) borderWidth else 1.dp
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -85,12 +81,13 @@ fun Modifier.cinemaFocusable(
         }
         .zIndex(if (isFocused) 10f else 1f)
         .graphicsLayer {
+            // Draw-phase scale update: 0 recompositions, 60fps hardware accelerated
             scaleX = scale
             scaleY = scale
         }
         .border(
             width = currentBorderWidth,
-            color = animatedBorderColor,
+            color = effectiveBorderColor,
             shape = shape,
         )
         .then(

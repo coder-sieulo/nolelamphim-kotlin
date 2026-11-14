@@ -1,11 +1,14 @@
 package nolelamphim.vercel.app.ui.screens.watch
 
+import androidx.compose.runtime.Immutable
 import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.model.MovieDetail
 
+@Immutable
 sealed interface WatchUiState {
     data object Loading : WatchUiState
 
+    @Immutable
     data class Success(
         val movie: MovieDetail,
         val currentServerIndex: Int,

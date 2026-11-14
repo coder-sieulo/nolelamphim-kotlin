@@ -149,7 +149,7 @@ fun HomeScreen(
                         // 1. Showcase Hero Banner Carousel (At the very top, full bleed)
                         val heroMovies = (listOfNotNull(state.hero) + state.latest.take(5)).distinctBy { it.id }
                         if (heroMovies.isNotEmpty()) {
-                            item {
+                            item(key = "row_hero", contentType = "hero_carousel") {
                                 HeroBannerCarousel(
                                     movies = heroMovies,
                                     onMovieClick = onMovieClick,
@@ -158,13 +158,13 @@ fun HomeScreen(
                         }
 
                         // 2. Quick Category Filter Hub Row
-                        item {
+                        item(key = "row_categories", contentType = "category_row") {
                             QuickCategoryFilterRow(onSelectCategory = onSeeAll)
                         }
 
                         // 3. Continue Watching (16:9 cards)
                         if (continueWatching.isNotEmpty()) {
-                            item {
+                            item(key = "row_continue_watching", contentType = "continue_row") {
                                 ContinueWatchingRow(
                                     entries = continueWatching,
                                     onEntryClick = onContinueClick,
@@ -175,7 +175,7 @@ fun HomeScreen(
                         // 4. Netflix-style Top 10 Ranking Row
                         val topMovies = (if (state.cinema.isNotEmpty()) state.cinema else state.latest).take(10)
                         if (topMovies.isNotEmpty()) {
-                            item {
+                            item(key = "row_top10", contentType = "top10_row") {
                                 TopRankingRow(
                                     title = "Top 10 Thịnh Hành Hôm Nay",
                                     movies = topMovies,
@@ -186,7 +186,7 @@ fun HomeScreen(
 
                         // 5. Phim Chiếu Rạp Đỉnh Cao (2:3 Vertical Cards)
                         if (state.cinema.isNotEmpty()) {
-                            item {
+                            item(key = "row_cinema", contentType = "movie_row") {
                                 MovieRow(
                                     title = "Phim chiếu rạp đỉnh cao",
                                     movies = state.cinema,
@@ -199,7 +199,7 @@ fun HomeScreen(
                         // 6. Mid-Feed Spotlight Feature Banner
                         val spotlight = state.singles.firstOrNull() ?: state.latest.getOrNull(2)
                         if (spotlight != null) {
-                            item {
+                            item(key = "row_spotlight_${spotlight.id}", contentType = "spotlight_card") {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -215,7 +215,7 @@ fun HomeScreen(
 
                         // 7. Phim Bộ Mới Nhất (16:9 Landscape Scene Shots)
                         if (state.series.isNotEmpty()) {
-                            item {
+                            item(key = "row_series", contentType = "backdrop_row") {
                                 BackdropMovieRow(
                                     title = "Phim bộ chọn lọc đặc sắc",
                                     movies = state.series,
@@ -227,7 +227,7 @@ fun HomeScreen(
 
                         // 8. Phim Mới Cập Nhật (2:3 Vertical Cards)
                         if (state.latest.isNotEmpty()) {
-                            item {
+                            item(key = "row_latest", contentType = "movie_row") {
                                 MovieRow(
                                     title = "Phim mới cập nhật",
                                     movies = state.latest,
@@ -239,7 +239,7 @@ fun HomeScreen(
 
                         // 9. Phim Lẻ Đặc Sắc (2:3 Vertical Cards)
                         if (state.singles.isNotEmpty()) {
-                            item {
+                            item(key = "row_singles", contentType = "movie_row") {
                                 MovieRow(
                                     title = "Phim lẻ đặc sắc",
                                     movies = state.singles,
