@@ -2,12 +2,25 @@ package nolelamphim.vercel.app.ui.components
 
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -144,26 +157,26 @@ private fun NativeVideoPlayer(
 
 @Composable
 private fun EmbeddedWebPlayer(url: String, modifier: Modifier) {
-    var webViewFailed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var webViewFailed by remember { mutableStateOf(false) }
 
     if (webViewFailed) {
-        androidx.compose.foundation.layout.Box(
-            modifier = modifier.androidx.compose.foundation.background(androidx.compose.ui.graphics.Color.Black),
-            contentAlignment = androidx.compose.ui.Alignment.Center,
+        Box(
+            modifier = modifier.background(Color.Black),
+            contentAlignment = Alignment.Center,
         ) {
-            androidx.compose.foundation.layout.Column(
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.androidx.compose.ui.unit.dp),
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                androidx.compose.material3.Text(
+                Text(
                     text = "Không hỗ trợ phát nhúng trên thiết bị này",
-                    color = androidx.compose.ui.graphics.Color.White,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
                 )
-                androidx.compose.material3.Text(
+                Text(
                     text = "Vui lòng chuyển sang máy chủ KKPhim (HLS VIP)",
-                    color = androidx.compose.ui.graphics.Color(0xFFF97316),
-                    fontSize = 12.androidx.compose.ui.unit.sp,
+                    color = Color(0xFFF97316),
+                    fontSize = 12.sp,
                 )
             }
         }
