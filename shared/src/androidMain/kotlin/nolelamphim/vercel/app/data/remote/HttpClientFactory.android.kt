@@ -5,3 +5,6 @@ import io.ktor.client.engine.okhttp.OkHttp
 
 actual fun createPlatformHttpClient(): HttpClient =
     HttpClient(OkHttp) { applyCommonConfig() }
+
+actual fun createImageHttpClient(): HttpClient =
+    HttpClient(OkHttp) { applyImageConfig() }

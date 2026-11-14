@@ -9,6 +9,7 @@ import nolelamphim.vercel.app.data.remote.createPlatformHttpClient
 
 object AppContainer {
     val httpClient by lazy { createPlatformHttpClient() }
+    val imageHttpClient by lazy { nolelamphim.vercel.app.data.remote.createImageHttpClient() }
     val movieApi by lazy { MovieApi(httpClient) }
     val multiSourceService by lazy { MultiSourceService(httpClient) }
     val movieRepository by lazy { MovieRepository(movieApi, multiSourceService) }

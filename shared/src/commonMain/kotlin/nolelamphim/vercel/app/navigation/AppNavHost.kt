@@ -105,11 +105,11 @@ fun AppNavHost() {
                 .fillMaxSize()
                 .background(CinemaColors.Background),
         ) {
-            // Main Content Area (Fixed start padding on TV so content never jitters during rail animation)
+            // Main Content Area (Compact start padding on TV so content has maximum screen real estate)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (isTv && !isFullscreenRoute) Modifier.padding(start = 84.dp) else Modifier),
+                    .then(if (isTv && !isFullscreenRoute) Modifier.padding(start = 56.dp) else Modifier),
             ) {
                 NavHost(
                     navController = navController,
@@ -519,9 +519,25 @@ private fun TvSideNavigationRail(
     val isFilterSelected = currentRoute == Routes.FILTER || currentRoute?.startsWith("filter") == true || currentRoute == Routes.SEARCH
 
     val railWidth by animateDpAsState(
-        targetValue = if (isExpanded) 210.dp else 84.dp,
+        targetValue = if (isExpanded) 168.dp else 56.dp,
         animationSpec = tween(durationMillis = 120),
         label = "tv-rail-width",
+    )
+
+    val liquidGlassBackground = Brush.verticalGradient(
+        listOf(
+            Color(0xD90E0E18),
+            Color(0xB310101E),
+            Color(0xCC0D0D16),
+        ),
+    )
+
+    val liquidGlassBorder = Brush.verticalGradient(
+        listOf(
+            Color.White.copy(alpha = 0.22f),
+            Color.White.copy(alpha = 0.05f),
+            Color(0x33F97316),
+        ),
     )
 
     Column(
@@ -529,35 +545,35 @@ private fun TvSideNavigationRail(
             .fillMaxHeight()
             .width(railWidth)
             .clip(RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp))
-            .background(if (isExpanded) Color(0xF7101018) else Color(0xEE0D0D14))
+            .background(liquidGlassBackground)
             .border(
                 1.dp,
-                if (isExpanded) Color.White.copy(alpha = 0.14f) else CinemaColors.BorderSubtle,
+                liquidGlassBorder,
                 RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),
             )
-            .padding(vertical = 24.dp, horizontal = if (isExpanded) 14.dp else 12.dp),
+            .padding(vertical = 18.dp, horizontal = if (isExpanded) 10.dp else 7.dp),
         horizontalAlignment = if (isExpanded) Alignment.Start else Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // App Logo Header
+        // App Logo Header (Liquid Glass Badge)
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = if (isExpanded) 4.dp else 0.dp),
+            modifier = Modifier.padding(start = if (isExpanded) 3.dp else 0.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF14141E))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x33FFFFFF))
+                    .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Image(
                     painter = painterResource(Res.drawable.nolelamphim_logo),
                     contentDescription = "Nô Lệ Làm Phim",
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(6.dp)),
                     contentScale = ContentScale.Fit,
                 )
             }
@@ -567,18 +583,18 @@ private fun TvSideNavigationRail(
                 enter = fadeIn(tween(100)),
                 exit = fadeOut(tween(60)),
             ) {
-                Column(modifier = Modifier.padding(start = 12.dp)) {
+                Column(modifier = Modifier.padding(start = 10.dp)) {
                     Text(
                         text = "NÔ LỆ LÀM PHIM",
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp),
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 12.sp),
                         color = Color.White,
                         fontWeight = FontWeight.Black,
-                        letterSpacing = 0.5.sp,
+                        letterSpacing = 0.4.sp,
                         maxLines = 1,
                     )
                     Text(
                         text = "Rạp phim tại gia",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         color = CinemaColors.Primary,
                         fontWeight = FontWeight.Bold,
                     )
@@ -586,7 +602,7 @@ private fun TvSideNavigationRail(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(10.dp))
 
         // Navigation Items
         TvRailItem(
@@ -599,7 +615,7 @@ private fun TvSideNavigationRail(
         )
         TvRailItem(
             icon = Icons.Default.Search,
-            label = "Tìm kiếm & Lọc",
+            label = "Tìm & Lọc",
             isSelected = isFilterSelected,
             isExpanded = isExpanded,
             onClick = onFilter,
@@ -626,10 +642,10 @@ private fun TvRailItem(
     onFocusChanged: (Boolean) -> Unit,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(10.dp)
 
     val itemWidth by animateDpAsState(
-        targetValue = if (isExpanded) 186.dp else 56.dp,
+        targetValue = if (isExpanded) 148.dp else 42.dp,
         animationSpec = tween(durationMillis = 120),
         label = "rail-item-width",
     )
@@ -637,16 +653,16 @@ private fun TvRailItem(
     Box(
         modifier = Modifier
             .width(itemWidth)
-            .height(50.dp)
+            .height(42.dp)
             .clip(shape)
             .background(
-                if (isSelected) CinemaColors.PrimaryContainer
-                else if (isFocused) Color.White.copy(alpha = 0.08f)
+                if (isFocused) Color.White.copy(alpha = 0.14f)
+                else if (isSelected) Color(0x33F97316)
                 else Color.Transparent,
             )
             .border(
-                width = if (isFocused) 2.dp else (if (isSelected) 1.dp else 0.dp),
-                color = if (isFocused) CinemaColors.Primary else (if (isSelected) CinemaColors.Primary.copy(alpha = 0.5f) else Color.Transparent),
+                width = if (isFocused) 1.5.dp else (if (isSelected) 1.dp else 0.dp),
+                color = if (isFocused) CinemaColors.Primary else (if (isSelected) CinemaColors.Primary.copy(alpha = 0.6f) else Color.Transparent),
                 shape = shape,
             )
             .cinemaFocusable(
@@ -663,29 +679,29 @@ private fun TvRailItem(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = if (isExpanded) 14.dp else 0.dp),
+                .padding(horizontal = if (isExpanded) 10.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isFocused) Color.White else (if (isSelected) CinemaColors.Primary else CinemaColors.TextSecondary),
-                modifier = Modifier.size(22.dp),
+                tint = if (isFocused) Color.White else (if (isSelected) CinemaColors.Primary else Color(0xFF9E9EA8)),
+                modifier = Modifier.size(19.dp),
             )
 
             AnimatedVisibility(
                 visible = isExpanded,
-                enter = fadeIn(tween(160)) + slideInHorizontally { -15 },
-                exit = fadeOut(tween(80)),
+                enter = fadeIn(tween(140)),
+                exit = fadeOut(tween(60)),
             ) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                    color = if (isFocused) Color.White else (if (isSelected) CinemaColors.Primary else CinemaColors.TextSecondary),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    color = if (isFocused) Color.White else (if (isSelected) CinemaColors.Primary else Color(0xFFC0C0C8)),
                     fontWeight = if (isFocused || isSelected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
-                    modifier = Modifier.padding(start = 14.dp),
+                    modifier = Modifier.padding(start = 10.dp),
                 )
             }
         }
