@@ -12,7 +12,17 @@ on:
         description: 'Build iOS Unsigned IPA'
         required: true
         type: boolean
+        default: false
+      create_release:
+        description: 'Create GitHub Release with downloadable files'
+        required: true
+        type: boolean
         default: true
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.0, leave empty for auto v1.0.<run_number>)'
+        required: false
+        type: string
+        default: ''
   push:
     tags: [ 'v*' ]
 
@@ -167,39 +177,53 @@ jobs:
           retention-days: 14
 
   # =========================================================================
-  # 3. CREATE GITHUB RELEASE (Khi push tag dạng v*)
+  # 3. CREATE GITHUB RELEASE (Tự động khi push tag v* HOẶC khi bấm Run workflow)
   # =========================================================================
   release:
     name: Create GitHub Release
     needs: [build-android, build-ios]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release == true))
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download Mobile APK
+      - name: Download all built artifacts
         uses: actions/download-artifact@v4
         with:
-          name: Nolelamphim-Android-Mobile-APK
           path: release-files/
+          pattern: 'Nolelamphim-*'
+          merge-multiple: true
 
-      - name: Download TV APK
-        uses: actions/download-artifact@v4
-        with:
-          name: Nolelamphim-Android-TV-APK
-          path: release-files/
+      - name: Determine Release Tag & Title
+        id: release_info
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag_name }}"
+            if [ -z "$TAG" ]; then
+              TAG="v1.0.${{ github.run_number }}"
+            fi
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "name=Release $TAG" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "name=Release ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Download iOS IPA
-        uses: actions/download-artifact@v4
-        with:
-          name: Nolelamphim-iOS-Unsigned-IPA
-          path: release-files/
+      - name: List files to attach
+        run: |
+          echo "Files in release-files/:"
+          ls -la release-files/
 
-      - name: Create Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release-files/*
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: ${{ steps.release_info.outputs.name }}
           draft: false
           prerelease: false
           generate_release_notes: true
