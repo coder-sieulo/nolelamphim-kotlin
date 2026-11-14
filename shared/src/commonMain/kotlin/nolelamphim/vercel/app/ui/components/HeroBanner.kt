@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,6 +70,7 @@ fun HeroBannerCarousel(
     val pagerState = rememberPagerState(pageCount = { featuredMovies.size })
     val bannerHeight = if (isTv) 480.dp else 450.dp
     val bannerShape = if (isTv) RoundedCornerShape(20.dp) else RoundedCornerShape(0.dp)
+    val scope = rememberCoroutineScope()
 
     // Auto-scroll effect (disabled on TV to prevent focus disruption, lightweight 350ms on mobile)
     LaunchedEffect(pagerState.pageCount, isTv) {
@@ -290,6 +292,34 @@ fun HeroBannerCarousel(
                                 Icon(Icons.Default.Info, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text("Chi tiết", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            }
+                        }
+
+                        if (isTv && featuredMovies.size > 1) {
+                            Box(
+                                modifier = Modifier
+                                    .cinemaFocusable(
+                                        onClick = {
+                                            scope.launch {
+                                                val next = (pagerState.currentPage + 1) % featuredMovies.size
+                                                pagerState.animateScrollToPage(next, animationSpec = tween(250))
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        scaleFocused = 1.10f,
+                                        focusedBorderColor = CinemaColors.Primary,
+                                    )
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White.copy(alpha = 0.14f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.30f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 18.dp, vertical = 13.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.SkipNext, contentDescription = "Phim tiếp theo", tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Tiếp theo", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
                             }
                         }
                     }

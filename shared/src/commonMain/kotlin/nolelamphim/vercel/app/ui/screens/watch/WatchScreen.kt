@@ -14,6 +14,14 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -1349,10 +1357,51 @@ private fun TvWatchLayout(
         }
     }
 
+    val tvFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        tvFocusRequester.requestFocus()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .focusRequester(tvFocusRequester)
+            .focusable()
+            .onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyUp) {
+                    when (event.key) {
+                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                            isHudVisible = !isHudVisible
+                            true
+                        }
+                        Key.DirectionUp, Key.DirectionDown -> {
+                            if (!isHudVisible) {
+                                isHudVisible = true
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        Key.Back, Key.Escape -> {
+                            if (isEpisodeDrawerOpen) {
+                                isEpisodeDrawerOpen = false
+                                true
+                            } else if (isHudVisible) {
+                                isHudVisible = false
+                                true
+                            } else {
+                                onBack()
+                                true
+                            }
+                        }
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            }
             .clickable {
                 isHudVisible = !isHudVisible
             },

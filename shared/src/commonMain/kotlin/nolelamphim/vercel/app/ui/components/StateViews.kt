@@ -160,18 +160,19 @@ fun ErrorView(
                 modifier = Modifier.padding(horizontal = 8.dp),
             )
             Spacer(Modifier.height(20.dp))
-            Button(
-                onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = CinemaColors.Primary,
-                    contentColor = Color.White,
-                ),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.cinemaFocusable(onClick = onRetry, shape = RoundedCornerShape(10.dp)),
+            Box(
+                modifier = Modifier
+                    .cinemaFocusable(onClick = onRetry, shape = RoundedCornerShape(10.dp), scaleFocused = 1.08f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(CinemaColors.Primary)
+                    .padding(horizontal = 20.dp, vertical = 11.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.size(8.dp))
-                Text("Thử lại", fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text("Thử lại", color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
@@ -222,16 +223,16 @@ fun EmptyView(
             )
             if (actionLabel != null && onAction != null) {
                 Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = onAction,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CinemaColors.SurfaceElevated,
-                        contentColor = CinemaColors.Primary,
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.cinemaFocusable(onClick = onAction, shape = RoundedCornerShape(10.dp)),
+                Box(
+                    modifier = Modifier
+                        .cinemaFocusable(onClick = onAction, shape = RoundedCornerShape(10.dp), scaleFocused = 1.08f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(CinemaColors.SurfaceElevated)
+                        .border(1.dp, CinemaColors.Primary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 20.dp, vertical = 11.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(actionLabel, fontWeight = FontWeight.SemiBold)
+                    Text(actionLabel, color = CinemaColors.Primary, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

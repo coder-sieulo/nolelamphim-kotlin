@@ -641,45 +641,84 @@ private fun TvDetailHeader(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Button(
-                    onClick = onPlayFirst,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CinemaColors.Primary,
-                        contentColor = Color.White,
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.cinemaFocusable(onClick = onPlayFirst, shape = RoundedCornerShape(10.dp)),
+                // Play CTA (Liquid Glass Primary)
+                Box(
+                    modifier = Modifier
+                        .cinemaFocusable(
+                            onClick = onPlayFirst,
+                            shape = RoundedCornerShape(12.dp),
+                            scaleFocused = 1.08f,
+                            focusedBorderColor = Color.White,
+                        )
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(CinemaColors.Primary, Color(0xFFB70606)),
+                            ),
+                        )
+                        .border(1.dp, Color(0xFFFF6666).copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 22.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Xem ngay", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Xem ngay", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                    }
                 }
 
-                OutlinedButton(
-                    onClick = onToggleFavorite,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.cinemaFocusable(onClick = onToggleFavorite, shape = RoundedCornerShape(10.dp)),
+                // Favorite CTA (Liquid Glass Frosted)
+                Box(
+                    modifier = Modifier
+                        .cinemaFocusable(
+                            onClick = onToggleFavorite,
+                            shape = RoundedCornerShape(12.dp),
+                            scaleFocused = 1.08f,
+                            focusedBorderColor = CinemaColors.Primary,
+                        )
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = null,
-                        tint = if (isFavorite) CinemaColors.Primary else Color.White,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (isFavorite) "Đã yêu thích" else "Thêm yêu thích", fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = null,
+                            tint = if (isFavorite) CinemaColors.Primary else Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (isFavorite) "Đã yêu thích" else "Thêm yêu thích",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                        )
+                    }
                 }
 
-                OutlinedButton(
-                    onClick = onBack,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = CinemaColors.TextSecondary),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.cinemaFocusable(onClick = onBack, shape = RoundedCornerShape(10.dp)),
+                // Back CTA (Liquid Glass Frosted)
+                Box(
+                    modifier = Modifier
+                        .cinemaFocusable(
+                            onClick = onBack,
+                            shape = RoundedCornerShape(12.dp),
+                            scaleFocused = 1.08f,
+                            focusedBorderColor = Color.White,
+                        )
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Quay lại", fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Quay lại", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    }
                 }
             }
         }

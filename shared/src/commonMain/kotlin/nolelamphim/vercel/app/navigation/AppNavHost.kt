@@ -285,7 +285,7 @@ fun AppNavHost() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(start = 84.dp)
+                            .padding(start = 56.dp)
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(

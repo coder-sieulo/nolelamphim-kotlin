@@ -158,10 +158,8 @@ fun HomeScreen(
                         }
 
                         // 2. Quick Category Filter Hub Row
-                        if (!isTv) {
-                            item {
-                                QuickCategoryFilterRow(onSelectCategory = onSeeAll)
-                            }
+                        item {
+                            QuickCategoryFilterRow(onSelectCategory = onSeeAll)
                         }
 
                         // 3. Continue Watching (16:9 cards)
@@ -252,14 +250,8 @@ fun HomeScreen(
                         }
                     }
 
-                    // Header: TV Top Bar or Mobile Pinned Header
-                    if (isTv) {
-                        TvTopBar(
-                            onSearch = { isSearchExpanded = !isSearchExpanded },
-                            onFilter = onOpenFilter,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                        )
-                    } else {
+                    // Header: Mobile Pinned Header (TV uses sleek left navigation rail)
+                    if (!isTv) {
                         MobileBrandHeader(
                             isScrolled = isScrolled,
                             onSearch = { isSearchExpanded = !isSearchExpanded },
@@ -554,8 +546,9 @@ private fun QuickCategoryFilterRow(
         CategoryHubItem("⚡ Mới nhất", CatalogType.LATEST, CinemaColors.NeonEmerald),
     )
 
+    val isTv = LocalIsTv.current
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        contentPadding = PaddingValues(horizontal = if (isTv) 24.dp else 16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(categories.size) { index ->
