@@ -70,14 +70,15 @@ fun HeroBannerCarousel(
     val bannerHeight = if (isTv) 480.dp else 450.dp
     val bannerShape = if (isTv) RoundedCornerShape(20.dp) else RoundedCornerShape(0.dp)
 
-    // Auto-scroll effect
-    LaunchedEffect(pagerState.pageCount) {
+    // Auto-scroll effect (disabled on TV to prevent focus disruption, lightweight 350ms on mobile)
+    LaunchedEffect(pagerState.pageCount, isTv) {
+        if (isTv) return@LaunchedEffect
         while (true) {
-            delay(5000)
+            delay(6000)
             val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
             pagerState.animateScrollToPage(
                 page = nextPage,
-                animationSpec = tween(durationMillis = 750, easing = FastOutSlowInEasing),
+                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
             )
         }
     }

@@ -144,25 +144,62 @@ private fun NativeVideoPlayer(
 
 @Composable
 private fun EmbeddedWebPlayer(url: String, modifier: Modifier) {
+    var webViewFailed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    if (webViewFailed) {
+        androidx.compose.foundation.layout.Box(
+            modifier = modifier.androidx.compose.foundation.background(androidx.compose.ui.graphics.Color.Black),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) {
+            androidx.compose.foundation.layout.Column(
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.androidx.compose.ui.unit.dp),
+            ) {
+                androidx.compose.material3.Text(
+                    text = "Không hỗ trợ phát nhúng trên thiết bị này",
+                    color = androidx.compose.ui.graphics.Color.White,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                )
+                androidx.compose.material3.Text(
+                    text = "Vui lòng chuyển sang máy chủ KKPhim (HLS VIP)",
+                    color = androidx.compose.ui.graphics.Color(0xFFF97316),
+                    fontSize = 12.androidx.compose.ui.unit.sp,
+                )
+            }
+        }
+        return
+    }
+
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            WebView(context).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                webViewClient = WebViewClient()
-                loadUrl(url)
+            try {
+                WebView(context).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.mediaPlaybackRequiresUserGesture = false
+                    webViewClient = WebViewClient()
+                    loadUrl(url)
+                }
+            } catch (t: Throwable) {
+                webViewFailed = true
+                android.view.View(context)
             }
         },
-        update = { webView ->
-            if (webView.url != url) {
-                webView.loadUrl(url)
+        update = { view ->
+            if (view is WebView && view.url != url) {
+                try {
+                    view.loadUrl(url)
+                } catch (_: Throwable) {}
             }
         },
-        onRelease = { webView ->
-            webView.stopLoading()
-            webView.destroy()
+        onRelease = { view ->
+            if (view is WebView) {
+                try {
+                    view.stopLoading()
+                    view.destroy()
+                } catch (_: Throwable) {}
+            }
         },
     )
 }

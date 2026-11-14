@@ -67,38 +67,15 @@ fun MovieCard(
     var isFocused by remember { mutableStateOf(false) }
     val isTv = LocalIsTv.current
 
-    val titleColor by animateColorAsState(
-        targetValue = if (isFocused) Color.White else CinemaColors.TextPrimary,
-        animationSpec = tween(durationMillis = 200),
-        label = "card-title-color",
-    )
-
-    val subtitleColor by animateColorAsState(
-        targetValue = if (isFocused) CinemaColors.Primary else CinemaColors.TextMuted,
-        animationSpec = tween(durationMillis = 200),
-        label = "card-sub-color",
-    )
-
-    val playAlpha by animateFloatAsState(
-        targetValue = if (isFocused) 1f else 0f,
-        animationSpec = tween(durationMillis = 180),
-        label = "card-play-alpha",
-    )
-    val playScale by animateFloatAsState(
-        targetValue = if (isFocused) 1f else 0.6f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
-        label = "card-play-scale",
-    )
+    val titleColor = if (isFocused) Color.White else CinemaColors.TextPrimary
+    val subtitleColor = if (isFocused) CinemaColors.Primary else CinemaColors.TextMuted
 
     Column(
         modifier = modifier
             .cinemaFocusable(
                 onClick = onClick,
                 shape = cardShape,
-                scaleFocused = if (isTv) 1.13f else 1.06f,
+                scaleFocused = if (isTv) 1.06f else 1.03f,
                 onFocusChanged = {
                     isFocused = it
                     onFocusChanged?.invoke(it)
@@ -127,32 +104,21 @@ fun MovieCard(
                     .background(CinemaColors.PosterOverlayGradient),
             )
 
-            // Centered glowing play button on focus
-            if (playAlpha > 0.01f) {
+            // Centered play button visible on focus
+            if (isFocused) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .graphicsLayer {
-                            alpha = playAlpha
-                            scaleX = playScale
-                            scaleY = playScale
-                        }
-                        .size(if (isTv) 46.dp else 40.dp)
-                        .shadow(12.dp, CircleShape, spotColor = CinemaColors.Primary, ambientColor = CinemaColors.Primary)
-                        .background(
-                            Brush.linearGradient(
-                                listOf(CinemaColors.Primary, Color(0xFFEA580C)),
-                            ),
-                            CircleShape,
-                        )
-                        .border(1.5.dp, Color.White.copy(alpha = 0.8f), CircleShape),
+                        .size(if (isTv) 44.dp else 38.dp)
+                        .background(CinemaColors.Primary, CircleShape)
+                        .border(1.5.dp, Color.White, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Xem",
                         tint = Color.White,
-                        modifier = Modifier.size(if (isTv) 26.dp else 22.dp),
+                        modifier = Modifier.size(if (isTv) 24.dp else 20.dp),
                     )
                 }
             }
@@ -253,28 +219,15 @@ fun BackdropMovieCard(
     val cardShape = RoundedCornerShape(12.dp)
     var isFocused by remember { mutableStateOf(false) }
     val isTv = LocalIsTv.current
-
-    val playIconSize by animateDpAsState(
-        targetValue = if (isFocused) 46.dp else 36.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
-        label = "backdrop-play-size",
-    )
-
-    val titleColor by animateColorAsState(
-        targetValue = if (isFocused) Color.White else CinemaColors.TextPrimary,
-        animationSpec = tween(200),
-        label = "backdrop-title-color",
-    )
+    val playIconSize = if (isFocused) 42.dp else 34.dp
+    val titleColor = if (isFocused) Color.White else CinemaColors.TextPrimary
 
     Column(
         modifier = modifier
             .cinemaFocusable(
                 onClick = onClick,
                 shape = cardShape,
-                scaleFocused = if (isTv) 1.10f else 1.05f,
+                scaleFocused = if (isTv) 1.05f else 1.02f,
                 onFocusChanged = { isFocused = it },
             ),
     ) {

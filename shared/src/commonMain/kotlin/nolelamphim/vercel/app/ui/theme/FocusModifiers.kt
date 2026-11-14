@@ -51,39 +51,22 @@ fun Modifier.cinemaFocusable(
     var isFocused by remember { mutableStateOf(false) }
     val isTv = LocalIsTv.current
 
-    // On TV, if caller didn't customize scaleFocused, default to a bold 1.13x zoom so it pops from 3 meters away
-    val effectiveScale = if (scaleFocused == 1.05f && isTv) 1.13f else scaleFocused
+    // Snappy, subtle scale: 1.06x on TV, 1.03x on mobile/desktop
+    val effectiveScale = if (scaleFocused == 1.05f && isTv) 1.06f else scaleFocused
 
     val scale by animateFloatAsState(
         targetValue = if (isFocused) effectiveScale else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
+        animationSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing),
         label = "cinema-focus-scale",
-    )
-
-    val shadowElevation by animateDpAsState(
-        targetValue = if (isFocused) (if (isTv) 20.dp else 12.dp) else 0.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
-        label = "cinema-focus-elevation",
     )
 
     val animatedBorderColor by animateColorAsState(
         targetValue = if (isFocused) focusedBorderColor else Color.White.copy(alpha = 0.08f),
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = tween(durationMillis = 100),
         label = "cinema-focus-border-color",
     )
 
-    val animatedBorderWidth by animateDpAsState(
-        targetValue = if (isFocused) (if (isTv) (borderWidth + 0.5.dp) else borderWidth) else 1.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMedium),
-        label = "cinema-focus-border-width",
-    )
-
+    val currentBorderWidth = if (isFocused) borderWidth else 1.dp
     val interactionSource = remember { MutableInteractionSource() }
 
     return this
@@ -94,20 +77,13 @@ fun Modifier.cinemaFocusable(
                 onFocusChanged?.invoke(nowFocused)
             }
         }
-        .zIndex(if (isFocused) 30f else 1f)
+        .zIndex(if (isFocused) 10f else 1f)
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
         }
-        .shadow(
-            elevation = shadowElevation,
-            shape = shape,
-            spotColor = focusedGlowColor,
-            ambientColor = focusedGlowColor,
-            clip = false,
-        )
         .border(
-            width = animatedBorderWidth,
+            width = currentBorderWidth,
             color = animatedBorderColor,
             shape = shape,
         )
@@ -127,17 +103,17 @@ fun Modifier.cinemaFocusable(
 }
 
 /**
- * Smooth spring-like scale bounce on touch press for Mobile/Desktop cards
+ * Fast, lightweight scale feedback on touch press for Mobile/Desktop cards
  */
 @Composable
 fun Modifier.bounceClick(
-    scaleDown: Float = 0.96f,
+    scaleDown: Float = 0.97f,
     onClick: () -> Unit,
 ): Modifier {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 70, easing = FastOutSlowInEasing),
         label = "bounce-scale",
     )
     val interactionSource = remember { MutableInteractionSource() }

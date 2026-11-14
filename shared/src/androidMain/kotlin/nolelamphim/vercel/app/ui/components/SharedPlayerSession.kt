@@ -42,7 +42,7 @@ object SharedPlayerSession {
         val dataSourceFactory = PngWrappedTsDataSource.Factory(
             DefaultDataSource.Factory(appContext),
         )
-        val newPlayer = ExoPlayer.Builder(appContext)
+        val builder = ExoPlayer.Builder(appContext)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -51,16 +51,26 @@ object SharedPlayerSession {
                     .build(),
                 /* handleAudioFocus = */ true,
             )
-            .setHandleAudioBecomingNoisy(true)
-            .build()
-            .apply {
-                setMediaItem(MediaItem.fromUri(streamUrl))
+
+        try {
+            builder.setHandleAudioBecomingNoisy(true)
+        } catch (_: Throwable) {
+            // Some TV custom ROMs don't support noisy audio receiver
+        }
+
+        val newPlayer = builder.build()
+        try {
+            if (streamUrl.isNotBlank()) {
+                newPlayer.setMediaItem(MediaItem.fromUri(streamUrl))
                 if (initialPositionMs > 0L) {
-                    seekTo(initialPositionMs)
+                    newPlayer.seekTo(initialPositionMs)
                 }
-                playWhenReady = true
-                prepare()
+                newPlayer.playWhenReady = true
+                newPlayer.prepare()
             }
+        } catch (t: Throwable) {
+            android.util.Log.e("SharedPlayerSession", "Failed to setMediaItem for $streamUrl", t)
+        }
 
         exoPlayer = newPlayer
         currentStreamUrl = streamUrl

@@ -241,9 +241,21 @@ fun AppNavHost() {
                             navArgument("episode") { type = NavType.IntType },
                         ),
                     ) { entry ->
-                        val slug = entry.arguments?.read { getStringOrNull("slug") } ?: return@composable
-                        val server = entry.arguments?.read { getIntOrNull("server") } ?: 0
-                        val episode = entry.arguments?.read { getIntOrNull("episode") } ?: 0
+                        val slug = try {
+                            entry.arguments?.read { getStringOrNull("slug") }
+                        } catch (_: Throwable) {
+                            null
+                        } ?: return@composable
+                        val server = try {
+                            entry.arguments?.read { getIntOrNull("server") } ?: 0
+                        } catch (_: Throwable) {
+                            0
+                        }
+                        val episode = try {
+                            entry.arguments?.read { getIntOrNull("episode") } ?: 0
+                        } catch (_: Throwable) {
+                            0
+                        }
                         WatchScreen(
                             slug = slug,
                             serverIndex = server,
@@ -507,11 +519,8 @@ private fun TvSideNavigationRail(
     val isFilterSelected = currentRoute == Routes.FILTER || currentRoute?.startsWith("filter") == true || currentRoute == Routes.SEARCH
 
     val railWidth by animateDpAsState(
-        targetValue = if (isExpanded) 226.dp else 84.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
+        targetValue = if (isExpanded) 210.dp else 84.dp,
+        animationSpec = tween(durationMillis = 120),
         label = "tv-rail-width",
     )
 
@@ -519,12 +528,6 @@ private fun TvSideNavigationRail(
         modifier = modifier
             .fillMaxHeight()
             .width(railWidth)
-            .shadow(
-                elevation = if (isExpanded) 24.dp else 4.dp,
-                shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),
-                spotColor = Color.Black,
-                ambientColor = Color.Black,
-            )
             .clip(RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp))
             .background(if (isExpanded) Color(0xF7101018) else Color(0xEE0D0D14))
             .border(
@@ -561,8 +564,8 @@ private fun TvSideNavigationRail(
 
             AnimatedVisibility(
                 visible = isExpanded,
-                enter = fadeIn(tween(180)) + slideInHorizontally { -20 },
-                exit = fadeOut(tween(100)),
+                enter = fadeIn(tween(100)),
+                exit = fadeOut(tween(60)),
             ) {
                 Column(modifier = Modifier.padding(start = 12.dp)) {
                     Text(
@@ -626,11 +629,8 @@ private fun TvRailItem(
     val shape = RoundedCornerShape(12.dp)
 
     val itemWidth by animateDpAsState(
-        targetValue = if (isExpanded) 198.dp else 56.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
+        targetValue = if (isExpanded) 186.dp else 56.dp,
+        animationSpec = tween(durationMillis = 120),
         label = "rail-item-width",
     )
 
@@ -652,7 +652,7 @@ private fun TvRailItem(
             .cinemaFocusable(
                 onClick = onClick,
                 shape = shape,
-                scaleFocused = 1.05f,
+                scaleFocused = 1.02f,
                 onFocusChanged = {
                     isFocused = it
                     onFocusChanged(it)

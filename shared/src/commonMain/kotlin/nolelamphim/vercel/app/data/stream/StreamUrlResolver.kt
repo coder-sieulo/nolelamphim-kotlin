@@ -24,6 +24,9 @@ object StreamUrlResolver {
     private val SIGNED_MASTER_URL =
         Regex("""signedMasterUrl\s*:\s*["']([^"']+)["']""")
 
+    private val QUERY_PARAM_STREAM_REGEX =
+        Regex("""[?&](?:url|file|link|source|src|m3u8)=([^&]+)""", RegexOption.IGNORE_CASE)
+
     fun resolve(embedUrl: String?): String? {
         val url = embedUrl?.trim().orEmpty()
         if (url.isEmpty()) return null
@@ -31,6 +34,40 @@ object StreamUrlResolver {
         val withoutQuery = url.substringBefore('#').substringBefore('?')
         if (isMediaUrl(withoutQuery)) {
             return url
+        }
+
+        // Check if query string contains a direct media URL (e.g. ?url=https://...m3u8 or ?file=...)
+        val queryMatch = QUERY_PARAM_STREAM_REGEX.find(url)
+        if (queryMatch != null) {
+            val candidateEncoded = queryMatch.groupValues[1]
+            val candidateDecoded = try {
+                candidateEncoded
+                    .replace("%3A", ":", ignoreCase = true)
+                    .replace("%2F", "/", ignoreCase = true)
+                    .replace("%3F", "?", ignoreCase = true)
+                    .replace("%3D", "=", ignoreCase = true)
+                    .replace("%26", "&", ignoreCase = true)
+            } catch (_: Exception) {
+                candidateEncoded
+            }
+            if (isMediaUrl(candidateDecoded)) {
+                return candidateDecoded
+            }
+        }
+
+        // Check if the URL contains an embedded http(s) .m3u8 link anywhere
+        if (url.contains(".m3u8", ignoreCase = true)) {
+            val m3u8Index = url.indexOf(".m3u8", ignoreCase = true)
+            val httpIndex = url.lastIndexOf("http", m3u8Index, ignoreCase = true)
+            if (httpIndex >= 0) {
+                val candidate = url.substring(httpIndex, m3u8Index + 5)
+                val cleaned = candidate
+                    .replace("%3A", ":", ignoreCase = true)
+                    .replace("%2F", "/", ignoreCase = true)
+                if (cleaned.startsWith("http://", ignoreCase = true) || cleaned.startsWith("https://", ignoreCase = true)) {
+                    return cleaned
+                }
+            }
         }
 
         val origin = originOf(url) ?: return null
@@ -49,7 +86,7 @@ object StreamUrlResolver {
     /** True when the URL already points at something a media player can open directly. */
     fun isMediaUrl(url: String?): Boolean {
         val withoutQuery = url?.trim()?.substringBefore('#')?.substringBefore('?').orEmpty()
-        return MEDIA_PATH_HINTS.any { withoutQuery.endsWith(it, ignoreCase = true) }
+        return MEDIA_PATH_HINTS.any { withoutQuery.endsWith(it, ignoreCase = true) || withoutQuery.contains(it, ignoreCase = true) }
     }
 
     /**
