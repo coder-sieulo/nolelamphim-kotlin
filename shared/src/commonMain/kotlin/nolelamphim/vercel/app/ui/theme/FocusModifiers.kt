@@ -28,6 +28,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+
 /**
  * CompositionLocal indicating if current device is Android TV / 10-foot UI.
  */
@@ -87,17 +93,27 @@ fun Modifier.cinemaFocusable(
             color = animatedBorderColor,
             shape = shape,
         )
-        .focusable(enabled = enabled, interactionSource = interactionSource)
         .then(
             if (onClick != null) {
-                Modifier.clickable(
-                    enabled = enabled,
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick,
-                )
-            } else {
                 Modifier
+                    .onKeyEvent { keyEvent ->
+                        if (enabled && keyEvent.type == KeyEventType.KeyUp &&
+                            (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter || keyEvent.key == Key.NumPadEnter)
+                        ) {
+                            onClick.invoke()
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    .clickable(
+                        enabled = enabled,
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick,
+                    )
+            } else {
+                Modifier.focusable(enabled = enabled, interactionSource = interactionSource)
             }
         )
 }
