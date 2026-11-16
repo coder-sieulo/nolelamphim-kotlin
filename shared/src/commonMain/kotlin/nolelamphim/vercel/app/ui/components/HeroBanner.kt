@@ -28,6 +28,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -68,23 +70,297 @@ import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
 /**
- * 3D CoverFlow Carousel for the Top Film Showcase
- * Matching cinema ticketing & streaming hero designs:
- * - Center vertical poster in sharp focus, flanked by symmetrical peeking side posters
- * - 3D scaling (0.82x) and dimming (0.50x) on non-active posters
- * - Centered Movie Title & Time/Meta directly below active poster
- * - Prominent warm coral "Xem ngay" (Book Now style) CTA button
- * - Native TV D-pad navigation + auto-advance on mobile
+ * Universal Hero Showcase:
+ * - On TV: Cinefy Big-Screen Cinema Hero (matching cinefy-tv.html) with wide backdrop,
+ *   eyebrow pill, large Space Grotesk headline, dual primary/secondary action buttons & indicator pips.
+ * - On Mobile: 3D CoverFlow Carousel with vertical posters and centered "Xem ngay" button.
  */
 @Composable
 fun HeroBannerCarousel(
     movies: List<Movie>,
     onMovieClick: (Movie) -> Unit,
+    onInfoClick: ((Movie) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     if (movies.isEmpty()) return
-
     val isTv = LocalIsTv.current
+
+    if (isTv) {
+        TvCinefyHeroBanner(
+            movies = movies,
+            onMovieClick = onMovieClick,
+            onInfoClick = onInfoClick,
+            modifier = modifier,
+        )
+    } else {
+        MobileCoverFlowHeroBanner(
+            movies = movies,
+            onMovieClick = onMovieClick,
+            modifier = modifier,
+        )
+    }
+}
+
+/**
+ * Cinefy TV Big Screen Hero Canvas (matching cinefy-tv.html .hero section)
+ */
+@Composable
+private fun TvCinefyHeroBanner(
+    movies: List<Movie>,
+    onMovieClick: (Movie) -> Unit,
+    onInfoClick: ((Movie) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val featuredMovies = remember(movies) { movies.take(6) }
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { featuredMovies.size })
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(380.dp)
+            .padding(horizontal = 24.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(26.dp))
+            .background(Color(0xFF0D0E12)),
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+        ) { page ->
+            val movie = featuredMovies[page]
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Wide Cinematic Backdrop
+                AsyncImage(
+                    model = movie.thumbUrl ?: movie.posterUrl,
+                    contentDescription = movie.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                // Left-to-right cinematic gradient (matching cinefy-tv.html)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color(0xF509090D),
+                                    0.36f to Color(0xD909090D),
+                                    0.78f to Color(0x1809090D),
+                                    1.0f to Color.Transparent,
+                                ),
+                            ),
+                        ),
+                )
+
+                // Bottom vignette gradient
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.Transparent,
+                                    0.55f to Color.Transparent,
+                                    1.0f to Color(0x9908090C),
+                                ),
+                            ),
+                        ),
+                )
+
+                // Left Content Copy
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxWidth(0.56f)
+                        .padding(start = 40.dp, end = 16.dp),
+                ) {
+                    // Eyebrow pill
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(30.dp))
+                            .background(Color(0xC9251910))
+                            .border(1.dp, Color(0x5CFF9B5C), RoundedCornerShape(30.dp))
+                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = null,
+                            tint = Color(0xFFFF812B),
+                            modifier = Modifier.size(15.dp),
+                        )
+                        Text(
+                            text = "NỔI BẬT · CINEFY ORIGINALS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFFFFC18F),
+                            letterSpacing = 1.sp,
+                        )
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // Title
+                    Text(
+                        text = movie.name.uppercase(),
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontSize = 38.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.5.sp,
+                            lineHeight = 44.sp,
+                        ),
+                        color = Color.White,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // Synopsis / Subtitle
+                    val subtitle = if (movie.originName.isNotBlank() && movie.originName != movie.name) {
+                        "${movie.originName} • Năm ${movie.year ?: 2024} ${if (movie.rating > 0) "• ★ ${movie.rating}" else ""}"
+                    } else {
+                        "Trải nghiệm phim chiếu rạp đỉnh cao với hình ảnh chất lượng cao trên màn hình lớn."
+                    }
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+                        color = Color(0xFFDDDDDD),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    // Action buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // 1. Primary "Xem ngay" button
+                        Box(
+                            modifier = Modifier
+                                .height(50.dp)
+                                .cinemaFocusable(
+                                    onClick = { onMovieClick(movie) },
+                                    shape = RoundedCornerShape(30.dp),
+                                    scaleFocused = 1.05f,
+                                    focusedBorderColor = Color(0xFFFFD0A9),
+                                )
+                                .clip(RoundedCornerShape(30.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFFFFB16D), Color(0xFFFF812B)),
+                                    ),
+                                )
+                                .padding(horizontal = 26.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = Color(0xFF211108),
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Text(
+                                    text = "Xem ngay",
+                                    color = Color(0xFF211108),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                )
+                            }
+                        }
+
+                        // 2. Secondary "Chi tiết" button
+                        Box(
+                            modifier = Modifier
+                                .height(50.dp)
+                                .cinemaFocusable(
+                                    onClick = {
+                                        if (onInfoClick != null) {
+                                            onInfoClick(movie)
+                                        } else {
+                                            onMovieClick(movie)
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(30.dp),
+                                    scaleFocused = 1.05f,
+                                    focusedBorderColor = Color(0xFFFFD0A9),
+                                )
+                                .clip(RoundedCornerShape(30.dp))
+                                .background(Color.White.copy(alpha = 0.12f))
+                                .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(30.dp))
+                                .padding(horizontal = 26.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(
+                                    text = "Chi tiết",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Indicator Pips (Matching cinefy-tv.html .hero-pips)
+        if (featuredMovies.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                repeat(featuredMovies.size) { index ->
+                    val isSelected = index == pagerState.currentPage
+                    val pillWidth by animateDpAsState(
+                        targetValue = if (isSelected) 24.dp else 7.dp,
+                        animationSpec = tween(250),
+                        label = "tv-pip-width",
+                    )
+                    Box(
+                        modifier = Modifier
+                            .height(7.dp)
+                            .width(pillWidth)
+                            .clip(CircleShape)
+                            .background(if (isSelected) Color(0xFFFF812B) else Color.White.copy(alpha = 0.35f)),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Mobile 3D CoverFlow Carousel
+ */
+@Composable
+private fun MobileCoverFlowHeroBanner(
+    movies: List<Movie>,
+    onMovieClick: (Movie) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val featuredMovies = remember(movies) { movies.take(10) }
     val pagerState = rememberPagerState(
         initialPage = 0,
@@ -92,9 +368,9 @@ fun HeroBannerCarousel(
     )
     val scope = rememberCoroutineScope()
 
-    // Auto-scroll on mobile (disabled on TV to prevent stealing D-pad focus)
-    LaunchedEffect(pagerState.pageCount, isTv) {
-        if (isTv || featuredMovies.size <= 1) return@LaunchedEffect
+    // Auto-scroll on mobile
+    LaunchedEffect(pagerState.pageCount) {
+        if (featuredMovies.size <= 1) return@LaunchedEffect
         while (true) {
             delay(6000)
             if (!pagerState.isScrollInProgress) {
@@ -110,21 +386,17 @@ fun HeroBannerCarousel(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .then(
-                if (!isTv) Modifier.statusBarsPadding().padding(top = 52.dp)
-                else Modifier.padding(top = 24.dp)
-            ),
+            .statusBarsPadding()
+            .padding(top = 52.dp),
     ) {
         val screenWidth = maxWidth
 
-        // Calculate card dimensions based on screen type
         val posterWidth = when {
-            isTv -> 250.dp
             screenWidth < 360.dp -> 190.dp
             screenWidth < 600.dp -> 215.dp
             else -> 250.dp
         }
-        val posterHeight = posterWidth * 1.48f // ~ 2:3 vertical poster ratio
+        val posterHeight = posterWidth * 1.48f
         val peekPadding = ((screenWidth - posterWidth) / 2).coerceAtLeast(16.dp)
 
         Column(
@@ -138,7 +410,6 @@ fun HeroBannerCarousel(
                     .height(posterHeight + 16.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                // Subtle ambient glow centered behind the active poster
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -202,7 +473,7 @@ fun HeroBannerCarousel(
                                     }
                                 },
                                 shape = RoundedCornerShape(16.dp),
-                                scaleFocused = if (isTv) 1.05f else 1.02f,
+                                scaleFocused = 1.02f,
                                 focusedBorderColor = Color(0xFFE87A50),
                             )
                             .clip(RoundedCornerShape(16.dp))
@@ -215,7 +486,6 @@ fun HeroBannerCarousel(
                             modifier = Modifier.fillMaxSize(),
                         )
 
-                        // Subtle border highlighting edges
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -231,7 +501,6 @@ fun HeroBannerCarousel(
 
             Spacer(Modifier.height(16.dp))
 
-            // Active Movie Info & CTA Button (Centered, matching the mockup)
             val currentMovie = featuredMovies.getOrNull(pagerState.currentPage) ?: featuredMovies.first()
 
             AnimatedContent(
@@ -245,12 +514,11 @@ fun HeroBannerCarousel(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    // Movie Title
                     Text(
                         text = movie.name,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = if (isTv) 23.sp else 20.sp,
+                            fontSize = 20.sp,
                             letterSpacing = (-0.3).sp,
                         ),
                         color = Color.White,
@@ -264,7 +532,6 @@ fun HeroBannerCarousel(
 
                     Spacer(Modifier.height(4.dp))
 
-                    // Subtitle / Meta (Formatted clean like "Time: 100mins" in mockup)
                     val metaText = remember(movie) {
                         val parts = mutableListOf<String>()
                         if (movie.originName.isNotBlank() && movie.originName != movie.name) {
@@ -282,9 +549,7 @@ fun HeroBannerCarousel(
 
                     Text(
                         text = metaText,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = if (isTv) 14.5.sp else 13.sp,
-                        ),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
                         color = Color(0xFF9E9E9E),
                         textAlign = TextAlign.Center,
                         maxLines = 1,
@@ -296,11 +561,10 @@ fun HeroBannerCarousel(
 
                     Spacer(Modifier.height(16.dp))
 
-                    // CTA Button: "Xem ngay" in warm terracotta / coral orange (#E87A50)
                     Box(
                         modifier = Modifier
-                            .width(if (isTv) 220.dp else 195.dp)
-                            .height(if (isTv) 46.dp else 42.dp)
+                            .width(195.dp)
+                            .height(42.dp)
                             .onKeyEvent { keyEvent ->
                                 if (keyEvent.type == KeyEventType.KeyDown) {
                                     when (keyEvent.key) {
@@ -327,7 +591,7 @@ fun HeroBannerCarousel(
                             .cinemaFocusable(
                                 onClick = { onMovieClick(movie) },
                                 shape = RoundedCornerShape(14.dp),
-                                scaleFocused = if (isTv) 1.08f else 1.03f,
+                                scaleFocused = 1.03f,
                                 focusedBorderColor = Color.White,
                             )
                             .clip(RoundedCornerShape(14.dp))
@@ -358,7 +622,6 @@ fun HeroBannerCarousel(
                 }
             }
 
-            // Indicator Dots below the button
             if (featuredMovies.size > 1) {
                 Spacer(Modifier.height(16.dp))
                 Row(

@@ -14,6 +14,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import nolelamphim.shared.generated.resources.Res
 import nolelamphim.shared.generated.resources.nolelamphim_logo
@@ -35,8 +36,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
@@ -93,9 +96,6 @@ fun AppNavHost() {
     val currentRoute = backStackEntry?.destination?.route
     val isTv = remember { getPlatform().isTv }
 
-    var focusedRailIndex by remember { mutableStateOf<Int?>(null) }
-    val isRailExpanded = isTv && focusedRailIndex != null
-
     val isTopLevelRoute = currentRoute in listOf(Routes.HOME, Routes.SEARCH, Routes.LIBRARY, Routes.FILTER) || currentRoute?.startsWith("filter") == true
     val isFullscreenRoute = currentRoute?.startsWith("watch") == true
 
@@ -103,13 +103,13 @@ fun AppNavHost() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(CinemaColors.Background),
+                .background(if (isTv) CinemaColors.TvBackground else CinemaColors.Background),
         ) {
-            // Main Content Area (Compact start padding on TV so content has maximum screen real estate)
+            // Main Content Area (Fixed 96.dp start padding on TV for Cinefy rail)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (isTv && !isFullscreenRoute) Modifier.padding(start = 56.dp) else Modifier),
+                    .then(if (isTv && !isFullscreenRoute) Modifier.padding(start = 96.dp) else Modifier),
             ) {
                 NavHost(
                     navController = navController,
@@ -275,47 +275,17 @@ fun AppNavHost() {
                 }
             }
 
-            // TV Scrim Gradient Overlay when rail expands
+            // Fixed Cinefy TV Navigation Rail (Clean, stable rail without intrusive scrims)
             if (isTv && !isFullscreenRoute) {
-                AnimatedVisibility(
-                    visible = isRailExpanded,
-                    enter = fadeIn(tween(220)),
-                    exit = fadeOut(tween(180)),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(start = 56.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        Color.Black.copy(alpha = 0.85f),
-                                        Color.Black.copy(alpha = 0.45f),
-                                        Color.Transparent,
-                                    ),
-                                ),
-                            ),
-                    )
-                }
-
-                // Floating Expandable TV Side Navigation Rail
                 TvSideNavigationRail(
                     currentRoute = currentRoute,
-                    isExpanded = isRailExpanded,
-                    onItemFocusChanged = { index, hasFocus ->
-                        if (hasFocus) {
-                            focusedRailIndex = index
-                        } else if (focusedRailIndex == index) {
-                            focusedRailIndex = null
-                        }
-                    },
                     onHome = {
                         navController.navigate(Routes.HOME) {
                             popUpTo(Routes.HOME) { inclusive = false }
                             launchSingleTop = true
                         }
                     },
-                    onFilter = {
+                    onExplore = {
                         navController.navigate(Routes.FILTER) {
                             popUpTo(Routes.HOME) { saveState = true }
                             launchSingleTop = true
@@ -324,6 +294,13 @@ fun AppNavHost() {
                     },
                     onLibrary = {
                         navController.navigate(Routes.LIBRARY) {
+                            popUpTo(Routes.HOME) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onSearch = {
+                        navController.navigate(Routes.SEARCH) {
                             popUpTo(Routes.HOME) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
@@ -509,201 +486,184 @@ private fun MobileNavItem(
 @Composable
 private fun TvSideNavigationRail(
     currentRoute: String?,
-    isExpanded: Boolean,
-    onItemFocusChanged: (index: Int, hasFocus: Boolean) -> Unit,
     onHome: () -> Unit,
-    onFilter: () -> Unit,
+    onExplore: () -> Unit,
     onLibrary: () -> Unit,
+    onSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isFilterSelected = currentRoute == Routes.FILTER || currentRoute?.startsWith("filter") == true || currentRoute == Routes.SEARCH
+    val isFilterSelected = currentRoute == Routes.FILTER || currentRoute?.startsWith("filter") == true
+    val isSearchSelected = currentRoute == Routes.SEARCH
 
-    val railWidth by animateDpAsState(
-        targetValue = if (isExpanded) 168.dp else 56.dp,
-        animationSpec = tween(durationMillis = 120),
-        label = "tv-rail-width",
-    )
-
-    val liquidGlassBackground = Brush.verticalGradient(
+    val railGradient = Brush.horizontalGradient(
         listOf(
-            Color(0xD90E0E18),
-            Color(0xB310101E),
-            Color(0xCC0D0D16),
-        ),
-    )
-
-    val liquidGlassBorder = Brush.verticalGradient(
-        listOf(
-            Color.White.copy(alpha = 0.22f),
-            Color.White.copy(alpha = 0.05f),
-            Color(0x33F97316),
+            Color(0xF5050608),
+            Color(0xCC050608),
         ),
     )
 
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(railWidth)
-            .clip(RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp))
-            .background(liquidGlassBackground)
+            .width(96.dp)
+            .background(railGradient)
             .border(
-                1.dp,
-                liquidGlassBorder,
-                RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.05f),
+                shape = RoundedCornerShape(0.dp),
             )
-            .padding(vertical = 18.dp, horizontal = if (isExpanded) 10.dp else 7.dp),
-        horizontalAlignment = if (isExpanded) Alignment.Start else Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(vertical = 32.dp, horizontal = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        // App Logo Header (Liquid Glass Badge)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = if (isExpanded) 3.dp else 0.dp),
+        // Cinefy TV Brand Logo Header (Play icon with orange gradient)
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .shadow(16.dp, RoundedCornerShape(16.dp), spotColor = Color(0xFFFF812B))
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(0xFFFFC18F), Color(0xFFFF791F)),
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0x33FFFFFF))
-                    .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(Res.drawable.nolelamphim_logo),
-                    contentDescription = "Nô Lệ Làm Phim",
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(RoundedCornerShape(6.dp)),
-                    contentScale = ContentScale.Fit,
-                )
-            }
-
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = fadeIn(tween(100)),
-                exit = fadeOut(tween(60)),
-            ) {
-                Column(modifier = Modifier.padding(start = 10.dp)) {
-                    Text(
-                        text = "NÔ LỆ LÀM PHIM",
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 12.sp),
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 0.4.sp,
-                        maxLines = 1,
-                    )
-                    Text(
-                        text = "Rạp phim tại gia",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                        color = CinemaColors.Primary,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Cinefy TV",
+                tint = Color(0xFF211108),
+                modifier = Modifier.size(24.dp),
+            )
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
 
-        // Navigation Items
-        TvRailItem(
+        // 1. Home
+        TvNavButton(
             icon = Icons.Default.Home,
-            label = "Trang chủ",
+            label = "Home",
             isSelected = currentRoute == Routes.HOME,
-            isExpanded = isExpanded,
             onClick = onHome,
-            onFocusChanged = { onItemFocusChanged(0, it) },
         )
-        TvRailItem(
-            icon = Icons.Default.Search,
-            label = "Tìm & Lọc",
+
+        // 2. Explore
+        TvNavButton(
+            icon = Icons.Default.Explore,
+            label = "Explore",
             isSelected = isFilterSelected,
-            isExpanded = isExpanded,
-            onClick = onFilter,
-            onFocusChanged = { onItemFocusChanged(1, it) },
+            onClick = onExplore,
         )
-        TvRailItem(
+
+        // 3. Library
+        TvNavButton(
             icon = Icons.Default.Bookmark,
-            label = "Thư viện",
+            label = "Library",
             isSelected = currentRoute == Routes.LIBRARY,
-            isExpanded = isExpanded,
             onClick = onLibrary,
-            onFocusChanged = { onItemFocusChanged(2, it) },
         )
+
+        // 4. Search
+        TvNavButton(
+            icon = Icons.Default.Search,
+            label = "Search",
+            isSelected = isSearchSelected,
+            onClick = onSearch,
+        )
+
+        Spacer(Modifier.weight(1f))
+
+        // Profile Avatar Circle (Matching cinefy-tv.html)
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(0xFFF5C49C), Color(0xFF89543E)),
+                    ),
+                )
+                .border(2.dp, Color.White.copy(alpha = 0.45f), CircleShape)
+                .cinemaFocusable(
+                    onClick = onLibrary,
+                    shape = CircleShape,
+                    scaleFocused = 1.10f,
+                    focusedBorderColor = Color(0xFFFFB16D),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "V",
+                color = Color(0xFF23150F),
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 15.sp,
+            )
+        }
     }
 }
 
 @Composable
-private fun TvRailItem(
+private fun TvNavButton(
     icon: ImageVector,
     label: String,
     isSelected: Boolean,
-    isExpanded: Boolean,
     onClick: () -> Unit,
-    onFocusChanged: (Boolean) -> Unit,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(18.dp)
 
-    val itemWidth by animateDpAsState(
-        targetValue = if (isExpanded) 148.dp else 42.dp,
-        animationSpec = tween(durationMillis = 120),
-        label = "rail-item-width",
-    )
+    val activeColor = Color(0xFFFFB579)
+    val inactiveColor = Color(0xFF85858B)
 
     Box(
         modifier = Modifier
-            .width(itemWidth)
-            .height(42.dp)
-            .clip(shape)
-            .background(
-                if (isFocused) Color.White.copy(alpha = 0.14f)
-                else if (isSelected) Color(0x33F97316)
-                else Color.Transparent,
-            )
-            .border(
-                width = if (isFocused) 1.5.dp else (if (isSelected) 1.dp else 0.dp),
-                color = if (isFocused) CinemaColors.Primary else (if (isSelected) CinemaColors.Primary.copy(alpha = 0.6f) else Color.Transparent),
-                shape = shape,
-            )
+            .size(width = 68.dp, height = 64.dp)
             .cinemaFocusable(
                 onClick = onClick,
                 shape = shape,
-                scaleFocused = 1.02f,
-                onFocusChanged = {
-                    isFocused = it
-                    onFocusChanged(it)
+                scaleFocused = 1.05f,
+                focusedBorderColor = Color(0xFFFFB16D),
+                onFocusChanged = { isFocused = it },
+            )
+            .clip(shape)
+            .then(
+                if (isSelected) {
+                    Modifier.background(
+                        Brush.linearGradient(
+                            listOf(Color(0x3BFF812B), Color(0x14FF812B)),
+                        ),
+                    )
+                } else if (isFocused) {
+                    Modifier.background(Color.White.copy(alpha = 0.12f))
+                } else {
+                    Modifier
                 },
+            )
+            .border(
+                width = if (isSelected) 1.dp else 0.dp,
+                color = if (isSelected) Color(0x5CFF9B5C) else Color.Transparent,
+                shape = shape,
             ),
-        contentAlignment = Alignment.CenterStart,
+        contentAlignment = Alignment.Center,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = if (isExpanded) 10.dp else 0.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center,
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isFocused) Color.White else (if (isSelected) CinemaColors.Primary else Color(0xFF9E9EA8)),
-                modifier = Modifier.size(19.dp),
+                tint = if (isFocused || isSelected) activeColor else inactiveColor,
+                modifier = Modifier.size(22.dp),
             )
-
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = fadeIn(tween(140)),
-                exit = fadeOut(tween(60)),
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                    color = if (isFocused) Color.White else (if (isSelected) CinemaColors.Primary else Color(0xFFC0C0C8)),
-                    fontWeight = if (isFocused || isSelected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                    modifier = Modifier.padding(start = 10.dp),
-                )
-            }
+            Spacer(Modifier.height(5.dp))
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.2.sp,
+                color = if (isFocused || isSelected) activeColor else inactiveColor,
+            )
         }
     }
 }

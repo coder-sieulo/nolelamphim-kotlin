@@ -33,6 +33,21 @@ object CinemaColors {
     val NeonViolet = Color(0xFF8B5CF6)
     val NeonRed = Color(0xFFEF4444)
 
+    // Cinefy TV Big Screen Tokens
+    val TvBackground = Color(0xFF08090C)
+    val TvOrange = Color(0xFFFF812B)
+    val TvOrangeHighlight = Color(0xFFFFB16D)
+    val TvOrangeGlow = Color(0x66FF812B)
+    val TvEyebrowBg = Color(0xC9251910)
+    val TvEyebrowBorder = Color(0x5CFF9B5C)
+    val TvEyebrowText = Color(0xFFFFC18F)
+    val TvOrangeGradient = Brush.horizontalGradient(
+        colors = listOf(Color(0xFFFFB16D), Color(0xFFFF812B)),
+    )
+    val TvRankGradient = Brush.horizontalGradient(
+        colors = listOf(Color(0xFFFFBD84), Color(0xFFFF812B)),
+    )
+
     val PrimaryGradient = Brush.horizontalGradient(
         colors = listOf(Color(0xFFFF7A00), Color(0xFFFF4500)),
     )

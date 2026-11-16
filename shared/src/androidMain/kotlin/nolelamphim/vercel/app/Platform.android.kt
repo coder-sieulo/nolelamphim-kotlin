@@ -36,3 +36,12 @@ class AndroidPlatform : Platform {
 }
 
 actual fun getPlatform(): Platform = AndroidPlatform()
+
+actual fun getCurrentTimeString(): String {
+    val sdf = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date())
+}
+
+actual fun getCurrentHourOfDay(): Int {
+    return java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+}

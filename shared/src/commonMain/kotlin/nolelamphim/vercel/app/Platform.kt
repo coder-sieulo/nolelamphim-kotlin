@@ -6,3 +6,6 @@ interface Platform {
 }
 
 expect fun getPlatform(): Platform
+
+expect fun getCurrentTimeString(): String
+expect fun getCurrentHourOfDay(): Int

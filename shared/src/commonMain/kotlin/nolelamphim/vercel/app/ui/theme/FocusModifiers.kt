@@ -49,26 +49,26 @@ fun Modifier.cinemaFocusable(
     shape: Shape = RoundedCornerShape(10.dp),
     scaleFocused: Float = 1.05f,
     borderWidth: Dp = 2.dp,
-    focusedBorderColor: Color = Color(0xFFF97316),
-    focusedGlowColor: Color = Color(0x80F97316),
+    focusedBorderColor: Color = Color(0xFFFFB16D),
+    focusedGlowColor: Color = Color(0x66FF812B),
     enabled: Boolean = true,
     onFocusChanged: ((Boolean) -> Unit)? = null,
 ): Modifier {
     var isFocused by remember { mutableStateOf(false) }
     val isTv = LocalIsTv.current
 
-    // Snappy, subtle scale: 1.06x on TV, 1.03x on mobile/desktop
-    val effectiveScale = if (scaleFocused == 1.05f && isTv) 1.06f else scaleFocused
+    // Snappy, cinematic scale: 1.075x on TV (matching cinefy-tv.html), 1.03x on mobile/desktop
+    val effectiveScale = if (scaleFocused == 1.05f && isTv) 1.075f else scaleFocused
 
     val scale by animateFloatAsState(
         targetValue = if (isFocused) effectiveScale else 1f,
-        animationSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
         label = "cinema-focus-scale",
     )
 
-    // Snappy border highlight: instant response on D-pad with zero frame-by-frame recomposition
+    // Snappy border highlight: 3dp on TV with luminous orange2 highlight
     val effectiveBorderColor = if (isFocused) focusedBorderColor else Color.White.copy(alpha = 0.08f)
-    val currentBorderWidth = if (isFocused) borderWidth else 1.dp
+    val currentBorderWidth = if (isFocused) (if (isTv) 3.dp else borderWidth) else 1.dp
     val interactionSource = remember { MutableInteractionSource() }
 
     return this
@@ -81,9 +81,13 @@ fun Modifier.cinemaFocusable(
         }
         .zIndex(if (isFocused) 10f else 1f)
         .graphicsLayer {
-            // Draw-phase scale update: 0 recompositions, 60fps hardware accelerated
             scaleX = scale
             scaleY = scale
+            if (isFocused && isTv) {
+                shadowElevation = 18.dp.toPx()
+                this.shape = shape
+                this.clip = false
+            }
         }
         .border(
             width = currentBorderWidth,

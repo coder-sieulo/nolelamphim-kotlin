@@ -71,9 +71,9 @@ fun MovieRow(
             Box(
                 modifier = Modifier
                     .width(4.dp)
-                    .height(18.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(CinemaColors.Primary),
+                    .height(if (isTv) 21.dp else 18.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(if (isTv) CinemaColors.TvOrange else CinemaColors.Primary),
             )
             Spacer(Modifier.width(10.dp))
             Text(
@@ -95,21 +95,22 @@ fun MovieRow(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Xem tất cả",
+                        text = if (isTv) "Khám phá tất cả" else "Xem tất cả",
                         style = MaterialTheme.typography.labelMedium,
-                        color = CinemaColors.Primary,
+                        color = if (isTv) Color(0xFF96949A) else CinemaColors.Primary,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(Modifier.width(2.dp))
                     Icon(
                         imageVector = Icons.Default.ArrowForward,
                         contentDescription = "Xem tất cả",
-                        tint = CinemaColors.Primary,
+                        tint = if (isTv) Color(0xFF96949A) else CinemaColors.Primary,
                         modifier = Modifier.size(15.dp),
                     )
                 }
             }
         }
+
 
         LazyRow(
             state = listState,
@@ -158,9 +159,9 @@ fun TopRankingRow(
             Box(
                 modifier = Modifier
                     .width(4.dp)
-                    .height(18.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(Color(0xFFEF4444)),
+                    .height(if (isTv) 21.dp else 18.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(if (isTv) CinemaColors.TvOrange else Color(0xFFEF4444)),
             )
             Spacer(Modifier.width(10.dp))
             Text(
@@ -276,14 +277,37 @@ private fun TopRankingItem(
         )
 
         // Movie Card sitting slightly shifted over the rank number
-        MovieCard(
-            movie = movie,
-            onClick = onClick,
-            onFocusChanged = { isCardFocused = it },
+        Box(
             modifier = Modifier
                 .width(if (isTv) 160.dp else 126.dp)
                 .align(Alignment.CenterEnd),
-        )
+        ) {
+            MovieCard(
+                movie = movie,
+                onClick = onClick,
+                onFocusChanged = { isCardFocused = it },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            // Top-left Cinefy Rank Badge for Top 3 movies on TV
+            if (isTv && rank <= 3) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(CinemaColors.TvRankGradient)
+                        .padding(horizontal = 7.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = "#$rank",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF201108),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -315,9 +339,9 @@ fun BackdropMovieRow(
             Box(
                 modifier = Modifier
                     .width(4.dp)
-                    .height(18.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(CinemaColors.NeonCyan),
+                    .height(if (isTv) 21.dp else 18.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(if (isTv) CinemaColors.TvOrange else CinemaColors.NeonCyan),
             )
             Spacer(Modifier.width(10.dp))
             Text(
@@ -339,21 +363,22 @@ fun BackdropMovieRow(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Xem tất cả",
+                        text = if (isTv) "Khám phá tất cả" else "Xem tất cả",
                         style = MaterialTheme.typography.labelMedium,
-                        color = CinemaColors.NeonCyan,
+                        color = if (isTv) Color(0xFF96949A) else CinemaColors.NeonCyan,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(Modifier.width(2.dp))
                     Icon(
                         imageVector = Icons.Default.ArrowForward,
                         contentDescription = "Xem tất cả",
-                        tint = CinemaColors.NeonCyan,
+                        tint = if (isTv) Color(0xFF96949A) else CinemaColors.NeonCyan,
                         modifier = Modifier.size(15.dp),
                     )
                 }
             }
         }
+
 
         LazyRow(
             state = listState,

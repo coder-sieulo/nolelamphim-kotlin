@@ -1,6 +1,7 @@
 package nolelamphim.vercel.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,9 +65,9 @@ fun ContinueWatchingRow(
             Box(
                 modifier = Modifier
                     .width(4.dp)
-                    .height(18.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(CinemaColors.Primary),
+                    .height(if (isTv) 21.dp else 18.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(if (isTv) CinemaColors.TvOrange else CinemaColors.Primary),
             )
             Spacer(Modifier.width(10.dp))
             Text(
@@ -74,7 +75,15 @@ fun ContinueWatchingRow(
                 style = MaterialTheme.typography.titleMedium,
                 color = CinemaColors.TextPrimary,
                 fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
             )
+            if (isTv) {
+                Text(
+                    text = "Xem tiếp tập dở",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    color = Color(0xFF96949A),
+                )
+            }
         }
 
         LazyRow(
@@ -92,7 +101,8 @@ fun ContinueWatchingRow(
                         .cinemaFocusable(
                             onClick = { onEntryClick(entry) },
                             shape = cardShape,
-                            scaleFocused = 1.06f,
+                            scaleFocused = 1.05f,
+                            focusedBorderColor = if (isTv) CinemaColors.TvOrangeHighlight else CinemaColors.Primary,
                         ),
                 ) {
                     Box(
@@ -100,7 +110,14 @@ fun ContinueWatchingRow(
                             .fillMaxWidth()
                             .aspectRatio(16f / 9f)
                             .clip(cardShape)
-                            .background(CinemaColors.SurfaceCard),
+                            .background(CinemaColors.SurfaceCard)
+                            .then(
+                                if (isTv) Modifier.border(
+                                    1.dp,
+                                    Color.White.copy(alpha = 0.12f),
+                                    cardShape,
+                                ) else Modifier
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         AsyncImage(
@@ -110,11 +127,19 @@ fun ContinueWatchingRow(
                             modifier = Modifier.fillMaxSize(),
                         )
 
-                        // Subtle dark tint
+                        // Subtle left-to-right cinema gradient overlay matching cinefy-tv mockup
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.4f)),
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                        listOf(
+                                            Color(0xE608090C),
+                                            Color(0x6608090C),
+                                            Color.Transparent,
+                                        ),
+                                    ),
+                                ),
                         )
 
                         // Play circle icon
@@ -128,7 +153,7 @@ fun ContinueWatchingRow(
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = "Phát",
-                                tint = CinemaColors.Primary,
+                                tint = if (isTv) CinemaColors.TvOrange else CinemaColors.Primary,
                                 modifier = Modifier.size(24.dp),
                             )
                         }
@@ -150,19 +175,19 @@ fun ContinueWatchingRow(
                             )
                         }
 
-                        // Orange bottom progress bar indicator (simulated continue watching line)
+                        // Orange bottom progress bar indicator
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
-                                .height(3.dp)
-                                .background(Color.White.copy(alpha = 0.2f)),
+                                .height(3.5.dp)
+                                .background(Color.White.copy(alpha = 0.25f)),
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(0.55f)
-                                    .height(3.dp)
-                                    .background(CinemaColors.Primary),
+                                    .height(3.5.dp)
+                                    .background(if (isTv) CinemaColors.TvOrange else CinemaColors.Primary),
                             )
                         }
                     }
@@ -187,4 +212,5 @@ fun ContinueWatchingRow(
             }
         }
     }
+
 }

@@ -87,6 +87,8 @@ import nolelamphim.vercel.app.ui.components.LoadingView
 import nolelamphim.vercel.app.ui.components.MovieRow
 import nolelamphim.vercel.app.ui.components.SpotlightMovieCard
 import nolelamphim.vercel.app.ui.components.TopRankingRow
+import nolelamphim.vercel.app.ui.components.TvMovieDetailModal
+import nolelamphim.vercel.app.ui.components.TvToplineHeader
 import nolelamphim.vercel.app.ui.screens.catalog.CatalogType
 import nolelamphim.vercel.app.ui.theme.CinemaColors
 import nolelamphim.vercel.app.ui.theme.LocalIsTv
@@ -111,6 +113,7 @@ fun HomeScreen(
     val isTv = LocalIsTv.current
     var isSearchExpanded by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var selectedTvMovieForDetail by remember { mutableStateOf<Movie?>(null) }
 
     when {
         state.isLoading -> HomeSkeletonScreen()
@@ -146,16 +149,25 @@ fun HomeScreen(
                         contentPadding = PaddingValues(bottom = if (isTv) 32.dp else 96.dp),
                         verticalArrangement = Arrangement.spacedBy(if (isTv) 24.dp else 20.dp),
                     ) {
-                        // 1. Showcase Hero Banner Carousel (At the very top, 3D CoverFlow)
+                        // 0. TV Topline Header (Greeting, clock, status icons)
+                        if (isTv) {
+                            item(key = "row_tv_topline", contentType = "tv_topline") {
+                                TvToplineHeader()
+                            }
+                        }
+
+                        // 1. Showcase Hero Banner Carousel (At the very top, 3D CoverFlow on Mobile, Wide Cinema on TV)
                         val heroMovies = (listOfNotNull(state.hero) + (if (state.cinema.isNotEmpty()) state.cinema else state.latest)).distinctBy { it.id }.take(10)
                         if (heroMovies.isNotEmpty()) {
                             item(key = "row_hero", contentType = "hero_carousel") {
                                 HeroBannerCarousel(
                                     movies = heroMovies,
                                     onMovieClick = onMovieClick,
+                                    onInfoClick = { selectedTvMovieForDetail = it },
                                 )
                             }
                         }
+
 
                         // 2. Quick Category Filter Hub Row
                         item(key = "row_categories", contentType = "category_row") {
@@ -305,10 +317,27 @@ fun HomeScreen(
                             onClose = { isSearchExpanded = false },
                         )
                     }
+
+                    // TV Movie Detail Quick Overlay Modal
+                    if (isTv && selectedTvMovieForDetail != null) {
+                        TvMovieDetailModal(
+                            movie = selectedTvMovieForDetail!!,
+                            onDismiss = { selectedTvMovieForDetail = null },
+                            onPlayClick = { movie ->
+                                selectedTvMovieForDetail = null
+                                onMovieClick(movie)
+                            },
+                            onDetailClick = { movie ->
+                                selectedTvMovieForDetail = null
+                                onMovieClick(movie)
+                            },
+                        )
+                    }
                 }
             }
         }
     }
+
 }
 
 @Composable
