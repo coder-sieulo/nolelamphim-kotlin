@@ -2,8 +2,11 @@ package nolelamphim.vercel.app.ui.screens.filter
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +39,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -51,6 +55,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +64,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -101,6 +107,22 @@ fun FilterScreen(
 
     val selectedGenreName = state.genres.firstOrNull { it.slug == state.selectedGenre }?.name
     val selectedCountryName = state.countries.firstOrNull { it.slug == state.selectedCountry }?.name
+
+    var showDropdowns by remember {
+        mutableStateOf(!isTv || (initialQuery.isNullOrBlank() && state.results.isEmpty()))
+    }
+    val shouldShowDropdowns = if (isTv) showDropdowns else true
+
+    val activeDropdownFilterCount = (if (state.selectedGenre != null) 1 else 0) +
+        (if (state.selectedCountry != null) 1 else 0) +
+        (if (state.selectedYear != null) 1 else 0) +
+        (if (state.sort != SortOption.DEFAULT) 1 else 0)
+
+    LaunchedEffect(state.results.isEmpty(), state.isLoading) {
+        if (state.results.isEmpty() && !state.isLoading && state.query.isBlank()) {
+            showDropdowns = true
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -150,16 +172,18 @@ fun FilterScreen(
             }
         }
 
-        // 2. Integrated Search Bar (Keyword Input)
-        Box(
+        // 2. Integrated Search Bar (Keyword Input) + TV Filter Toggle
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = horizontalPadding, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             OutlinedTextField(
                 value = state.query,
                 onValueChange = { viewModel.setQuery(it) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
                 placeholder = {
                     Text(
                         text = "Nhập tên phim, diễn viên, đạo diễn...",
@@ -201,7 +225,17 @@ fun FilterScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(CinemaColors.Primary)
-                                .clickable { viewModel.apply() }
+                                .cinemaFocusable(
+                                    onClick = {
+                                        viewModel.apply()
+                                        if (isTv) showDropdowns = false
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                )
+                                .clickable {
+                                    viewModel.apply()
+                                    if (isTv) showDropdowns = false
+                                }
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -216,7 +250,10 @@ fun FilterScreen(
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { viewModel.apply() }),
+                keyboardActions = KeyboardActions(onSearch = {
+                    viewModel.apply()
+                    if (isTv) showDropdowns = false
+                }),
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color(0xFF14141E),
@@ -228,242 +265,324 @@ fun FilterScreen(
                     cursorColor = CinemaColors.Primary,
                 ),
             )
-        }
 
-        // 3. Dropdown Filter Section (Responsive: Row for TV, 2x2 Grid for Mobile)
-        if (isTv) {
-            // TV: 4 dropdowns side by side in a single sleek toolbar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = horizontalPadding, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                CinemaDropdownField(
-                    label = "Thể loại",
-                    selectedText = selectedGenreName ?: "Tất cả thể loại",
-                    hasValue = state.selectedGenre != null,
-                    items = state.genres,
-                    itemLabel = { it.name },
-                    isSelected = { it.slug == state.selectedGenre },
-                    onSelect = { viewModel.selectGenre(it.slug) },
-                    onClear = { viewModel.selectGenre(null) },
-                    modifier = Modifier.weight(1f),
-                )
-
-                CinemaDropdownField(
-                    label = "Quốc gia",
-                    selectedText = selectedCountryName ?: "Tất cả quốc gia",
-                    hasValue = state.selectedCountry != null,
-                    items = state.countries,
-                    itemLabel = { it.name },
-                    isSelected = { it.slug == state.selectedCountry },
-                    onSelect = { viewModel.selectCountry(it.slug) },
-                    onClear = { viewModel.selectCountry(null) },
-                    modifier = Modifier.weight(1f),
-                )
-
-                CinemaDropdownField(
-                    label = "Năm phát hành",
-                    selectedText = state.selectedYear?.toString() ?: "Tất cả các năm",
-                    hasValue = state.selectedYear != null,
-                    items = filterYears,
-                    itemLabel = { it.toString() },
-                    isSelected = { it == state.selectedYear },
-                    onSelect = { viewModel.selectYear(it) },
-                    onClear = { viewModel.selectYear(null) },
-                    modifier = Modifier.weight(1f),
-                )
-
-                CinemaDropdownField(
-                    label = "Sắp xếp theo",
-                    selectedText = state.sort.label,
-                    hasValue = state.sort != SortOption.DEFAULT,
-                    items = SortOption.entries,
-                    itemLabel = { it.label },
-                    isSelected = { it == state.sort },
-                    onSelect = { viewModel.selectSort(it) },
-                    onClear = { viewModel.selectSort(SortOption.DEFAULT) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        } else {
-            // Mobile: 2x2 grid of modern cinema dropdown cards
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = horizontalPadding, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+            if (isTv) {
+                // TV Filter Toggle Pill (Opens/Closes dropdowns bar on TV)
+                val isFilterActive = activeDropdownFilterCount > 0
+                Box(
+                    modifier = Modifier
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            if (showDropdowns) CinemaColors.Primary.copy(alpha = 0.22f)
+                            else if (isFilterActive) CinemaColors.Primary.copy(alpha = 0.12f)
+                            else CinemaColors.SurfaceCard,
+                        )
+                        .border(
+                            width = if (showDropdowns || isFilterActive) 1.5.dp else 1.dp,
+                            color = if (showDropdowns || isFilterActive) CinemaColors.Primary else CinemaColors.BorderSubtle,
+                            shape = RoundedCornerShape(14.dp),
+                        )
+                        .cinemaFocusable(
+                            onClick = { showDropdowns = !showDropdowns },
+                            shape = RoundedCornerShape(14.dp),
+                        )
+                        .bounceClick { showDropdowns = !showDropdowns }
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    CinemaDropdownField(
-                        label = "Thể loại",
-                        selectedText = selectedGenreName ?: "Tất cả thể loại",
-                        hasValue = state.selectedGenre != null,
-                        items = state.genres,
-                        itemLabel = { it.name },
-                        isSelected = { it.slug == state.selectedGenre },
-                        onSelect = { viewModel.selectGenre(it.slug) },
-                        onClear = { viewModel.selectGenre(null) },
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    CinemaDropdownField(
-                        label = "Quốc gia",
-                        selectedText = selectedCountryName ?: "Tất cả quốc gia",
-                        hasValue = state.selectedCountry != null,
-                        items = state.countries,
-                        itemLabel = { it.name },
-                        isSelected = { it.slug == state.selectedCountry },
-                        onSelect = { viewModel.selectCountry(it.slug) },
-                        onClear = { viewModel.selectCountry(null) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    CinemaDropdownField(
-                        label = "Năm phát hành",
-                        selectedText = state.selectedYear?.toString() ?: "Tất cả các năm",
-                        hasValue = state.selectedYear != null,
-                        items = filterYears,
-                        itemLabel = { it.toString() },
-                        isSelected = { it == state.selectedYear },
-                        onSelect = { viewModel.selectYear(it) },
-                        onClear = { viewModel.selectYear(null) },
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    CinemaDropdownField(
-                        label = "Sắp xếp theo",
-                        selectedText = state.sort.label,
-                        hasValue = state.sort != SortOption.DEFAULT,
-                        items = SortOption.entries,
-                        itemLabel = { it.label },
-                        isSelected = { it == state.sort },
-                        onSelect = { viewModel.selectSort(it) },
-                        onClear = { viewModel.selectSort(SortOption.DEFAULT) },
-                        modifier = Modifier.weight(1f),
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Bộ lọc",
+                            tint = if (showDropdowns || isFilterActive) CinemaColors.Primary else Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = if (isFilterActive) "Bộ lọc ($activeDropdownFilterCount)" else "Bộ lọc",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = if (showDropdowns || isFilterActive) CinemaColors.Primary else CinemaColors.TextSecondary,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .rotate(if (showDropdowns) 180f else 0f),
+                        )
+                    }
                 }
             }
         }
 
-        // 4. Active Filter Badges Strip (Quick Dismiss Pills)
-        if (state.hasFilters || state.sort != SortOption.DEFAULT) {
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                contentPadding = PaddingValues(horizontal = horizontalPadding),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (state.query.isNotBlank()) {
-                    item {
-                        ActiveFilterPill(
-                            label = "\"${state.query.trim()}\"",
-                            onRemove = {
-                                viewModel.setQuery("")
-                                viewModel.apply()
-                            },
-                        )
-                    }
-                }
-                if (selectedGenreName != null) {
-                    item {
-                        ActiveFilterPill(
-                            label = selectedGenreName,
-                            onRemove = { viewModel.selectGenre(null) },
-                        )
-                    }
-                }
-                if (selectedCountryName != null) {
-                    item {
-                        ActiveFilterPill(
-                            label = selectedCountryName,
-                            onRemove = { viewModel.selectCountry(null) },
-                        )
-                    }
-                }
-                if (state.selectedYear != null) {
-                    item {
-                        ActiveFilterPill(
-                            label = "Năm ${state.selectedYear}",
-                            onRemove = { viewModel.selectYear(null) },
-                        )
-                    }
-                }
-                if (state.sort != SortOption.DEFAULT) {
-                    item {
-                        ActiveFilterPill(
-                            label = state.sort.label,
-                            onRemove = { viewModel.selectSort(SortOption.DEFAULT) },
-                        )
-                    }
-                }
-                item {
-                    Text(
-                        text = "Xóa tất cả",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CinemaColors.Primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .clickable { viewModel.reset() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                }
-            }
-        }
-
-        // 5. Action Buttons (Apply & Reset)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = horizontalPadding, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // 3. Dropdown Filters, Badges & Action Buttons (Collapsible on TV)
+        AnimatedVisibility(
+            visible = shouldShowDropdowns,
+            enter = expandVertically(animationSpec = tween(180)) + fadeIn(animationSpec = tween(140)),
+            exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(140)),
         ) {
-            Button(
-                onClick = viewModel::apply,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = CinemaColors.Primary,
-                    contentColor = Color.White,
-                ),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp)
-                    .cinemaFocusable(onClick = viewModel::apply, shape = RoundedCornerShape(10.dp)),
-            ) {
-                Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = if (state.query.isNotBlank()) "Tìm kiếm & Lọc" else if (state.hasFilters) "Áp dụng bộ lọc" else "Khám phá tất cả",
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (isTv) {
+                    // TV: 4 dropdowns side by side in a single sleek toolbar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = horizontalPadding, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CinemaDropdownField(
+                            label = "Thể loại",
+                            selectedText = selectedGenreName ?: "Tất cả thể loại",
+                            hasValue = state.selectedGenre != null,
+                            items = state.genres,
+                            itemLabel = { it.name },
+                            isSelected = { it.slug == state.selectedGenre },
+                            onSelect = { viewModel.selectGenre(it.slug) },
+                            onClear = { viewModel.selectGenre(null) },
+                            modifier = Modifier.weight(1f),
+                        )
 
-            OutlinedButton(
-                onClick = viewModel::reset,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = CinemaColors.TextSecondary,
-                ),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .height(44.dp)
-                    .cinemaFocusable(onClick = viewModel::reset, shape = RoundedCornerShape(10.dp)),
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Đặt lại", fontWeight = FontWeight.SemiBold)
+                        CinemaDropdownField(
+                            label = "Quốc gia",
+                            selectedText = selectedCountryName ?: "Tất cả quốc gia",
+                            hasValue = state.selectedCountry != null,
+                            items = state.countries,
+                            itemLabel = { it.name },
+                            isSelected = { it.slug == state.selectedCountry },
+                            onSelect = { viewModel.selectCountry(it.slug) },
+                            onClear = { viewModel.selectCountry(null) },
+                            modifier = Modifier.weight(1f),
+                        )
+
+                        CinemaDropdownField(
+                            label = "Năm phát hành",
+                            selectedText = state.selectedYear?.toString() ?: "Tất cả các năm",
+                            hasValue = state.selectedYear != null,
+                            items = filterYears,
+                            itemLabel = { it.toString() },
+                            isSelected = { it == state.selectedYear },
+                            onSelect = { viewModel.selectYear(it) },
+                            onClear = { viewModel.selectYear(null) },
+                            modifier = Modifier.weight(1f),
+                        )
+
+                        CinemaDropdownField(
+                            label = "Sắp xếp theo",
+                            selectedText = state.sort.label,
+                            hasValue = state.sort != SortOption.DEFAULT,
+                            items = SortOption.entries,
+                            itemLabel = { it.label },
+                            isSelected = { it == state.sort },
+                            onSelect = { viewModel.selectSort(it) },
+                            onClear = { viewModel.selectSort(SortOption.DEFAULT) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                } else {
+                    // Mobile: 2x2 grid of modern cinema dropdown cards
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = horizontalPadding, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            CinemaDropdownField(
+                                label = "Thể loại",
+                                selectedText = selectedGenreName ?: "Tất cả thể loại",
+                                hasValue = state.selectedGenre != null,
+                                items = state.genres,
+                                itemLabel = { it.name },
+                                isSelected = { it.slug == state.selectedGenre },
+                                onSelect = { viewModel.selectGenre(it.slug) },
+                                onClear = { viewModel.selectGenre(null) },
+                                modifier = Modifier.weight(1f),
+                            )
+
+                            CinemaDropdownField(
+                                label = "Quốc gia",
+                                selectedText = selectedCountryName ?: "Tất cả quốc gia",
+                                hasValue = state.selectedCountry != null,
+                                items = state.countries,
+                                itemLabel = { it.name },
+                                isSelected = { it.slug == state.selectedCountry },
+                                onSelect = { viewModel.selectCountry(it.slug) },
+                                onClear = { viewModel.selectCountry(null) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            CinemaDropdownField(
+                                label = "Năm phát hành",
+                                selectedText = state.selectedYear?.toString() ?: "Tất cả các năm",
+                                hasValue = state.selectedYear != null,
+                                items = filterYears,
+                                itemLabel = { it.toString() },
+                                isSelected = { it == state.selectedYear },
+                                onSelect = { viewModel.selectYear(it) },
+                                onClear = { viewModel.selectYear(null) },
+                                modifier = Modifier.weight(1f),
+                            )
+
+                            CinemaDropdownField(
+                                label = "Sắp xếp theo",
+                                selectedText = state.sort.label,
+                                hasValue = state.sort != SortOption.DEFAULT,
+                                items = SortOption.entries,
+                                itemLabel = { it.label },
+                                isSelected = { it == state.sort },
+                                onSelect = { viewModel.selectSort(it) },
+                                onClear = { viewModel.selectSort(SortOption.DEFAULT) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+
+                // 4. Active Filter Badges Strip (Quick Dismiss Pills)
+                if (state.hasFilters || state.sort != SortOption.DEFAULT) {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        contentPadding = PaddingValues(horizontal = horizontalPadding),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (state.query.isNotBlank()) {
+                            item {
+                                ActiveFilterPill(
+                                    label = "\"${state.query.trim()}\"",
+                                    onRemove = {
+                                        viewModel.setQuery("")
+                                        viewModel.apply()
+                                    },
+                                )
+                            }
+                        }
+                        if (selectedGenreName != null) {
+                            item {
+                                ActiveFilterPill(
+                                    label = selectedGenreName,
+                                    onRemove = { viewModel.selectGenre(null) },
+                                )
+                            }
+                        }
+                        if (selectedCountryName != null) {
+                            item {
+                                ActiveFilterPill(
+                                    label = selectedCountryName,
+                                    onRemove = { viewModel.selectCountry(null) },
+                                )
+                            }
+                        }
+                        if (state.selectedYear != null) {
+                            item {
+                                ActiveFilterPill(
+                                    label = "Năm ${state.selectedYear}",
+                                    onRemove = { viewModel.selectYear(null) },
+                                )
+                            }
+                        }
+                        if (state.sort != SortOption.DEFAULT) {
+                            item {
+                                ActiveFilterPill(
+                                    label = state.sort.label,
+                                    onRemove = { viewModel.selectSort(SortOption.DEFAULT) },
+                                )
+                            }
+                        }
+                        item {
+                            Text(
+                                text = "Xóa tất cả",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = CinemaColors.Primary,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        viewModel.reset()
+                                        if (isTv) showDropdowns = true
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                }
+
+                // 5. Action Buttons (Apply & Reset)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = horizontalPadding, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Button(
+                        onClick = {
+                            viewModel.apply()
+                            if (isTv) showDropdowns = false
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CinemaColors.Primary,
+                            contentColor = Color.White,
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .cinemaFocusable(
+                                onClick = {
+                                    viewModel.apply()
+                                    if (isTv) showDropdowns = false
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                            ),
+                    ) {
+                        Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (state.query.isNotBlank()) "Tìm kiếm & Lọc" else if (state.hasFilters) "Áp dụng bộ lọc" else "Khám phá tất cả",
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.reset()
+                            if (isTv) showDropdowns = true
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = CinemaColors.TextSecondary,
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .height(44.dp)
+                            .cinemaFocusable(
+                                onClick = {
+                                    viewModel.reset()
+                                    if (isTv) showDropdowns = true
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                            ),
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Đặt lại", fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
         }
 
@@ -484,7 +603,13 @@ fun FilterScreen(
             else -> PullToRefreshBox(
                 isRefreshing = state.isLoading,
                 onRefresh = viewModel::apply,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { focusState ->
+                        if (isTv && focusState.hasFocus && state.results.isNotEmpty()) {
+                            showDropdowns = false
+                        }
+                    },
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     // Results count banner
