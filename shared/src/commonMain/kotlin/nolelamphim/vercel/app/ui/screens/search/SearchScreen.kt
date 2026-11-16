@@ -117,12 +117,38 @@ fun SearchScreen(
                         )
                     },
                     trailingIcon = {
-                        if (state.query.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onQueryChange("") }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Xóa",
-                                    tint = CinemaColors.TextSecondary,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(end = 4.dp),
+                        ) {
+                            if (state.query.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.onQueryChange("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Xóa",
+                                        tint = CinemaColors.TextSecondary,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(CinemaColors.Primary)
+                                    .cinemaFocusable(
+                                        onClick = { viewModel.submitSearch() },
+                                        shape = RoundedCornerShape(8.dp),
+                                    )
+                                    .clickable { viewModel.submitSearch() }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "Tìm",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
                                 )
                             }
                         }
@@ -141,14 +167,16 @@ fun SearchScreen(
                     keyboardActions = KeyboardActions(onSearch = { viewModel.submitSearch() }),
                 )
 
-                // Filter button
+                // Filter button (Navigates to Explore / Filter screen)
                 Box(
                     modifier = Modifier
+                        .height(52.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(CinemaColors.SurfaceCard)
                         .border(1.dp, CinemaColors.BorderSubtle, RoundedCornerShape(12.dp))
                         .cinemaFocusable(onClick = onOpenFilter, shape = RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                        .clickable(onClick = onOpenFilter)
+                        .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Row(
@@ -162,7 +190,7 @@ fun SearchScreen(
                             modifier = Modifier.size(18.dp),
                         )
                         Text(
-                            text = "Lọc",
+                            text = "Bộ lọc",
                             style = MaterialTheme.typography.labelMedium,
                             color = CinemaColors.TextPrimary,
                             fontWeight = FontWeight.SemiBold,

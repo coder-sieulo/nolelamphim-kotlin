@@ -159,13 +159,13 @@ fun FilterScreen(
 
             Column {
                 Text(
-                    text = "Tìm kiếm & Bộ lọc",
+                    text = "Khám phá & Bộ lọc",
                     style = if (isTv) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.titleLarge,
                     color = CinemaColors.TextPrimary,
                     fontWeight = FontWeight.ExtraBold,
                 )
                 Text(
-                    text = "Khám phá theo từ khóa, thể loại, quốc gia, năm và sắp xếp",
+                    text = "Khám phá kho phim theo thể loại, quốc gia, năm và sắp xếp",
                     style = MaterialTheme.typography.labelSmall,
                     color = CinemaColors.TextMuted,
                 )

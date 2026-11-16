@@ -165,11 +165,14 @@ fun AppNavHost() {
                     }
 
                     composable(Routes.SEARCH) {
-                        FilterScreen(
-                            initialQuery = null,
-                            onBack = { navController.popBackStack() },
+                        SearchScreen(
                             onMovieClick = { movie ->
                                 navController.navigate(Routes.detail(movie.slug))
+                            },
+                            onOpenFilter = {
+                                navController.navigate(Routes.FILTER) {
+                                    launchSingleTop = true
+                                }
                             },
                         )
                     }
