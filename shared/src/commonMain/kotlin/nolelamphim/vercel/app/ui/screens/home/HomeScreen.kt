@@ -146,8 +146,8 @@ fun HomeScreen(
                         contentPadding = PaddingValues(bottom = if (isTv) 32.dp else 96.dp),
                         verticalArrangement = Arrangement.spacedBy(if (isTv) 24.dp else 20.dp),
                     ) {
-                        // 1. Showcase Hero Banner Carousel (At the very top, full bleed)
-                        val heroMovies = (listOfNotNull(state.hero) + state.latest.take(5)).distinctBy { it.id }
+                        // 1. Showcase Hero Banner Carousel (At the very top, 3D CoverFlow)
+                        val heroMovies = (listOfNotNull(state.hero) + (if (state.cinema.isNotEmpty()) state.cinema else state.latest)).distinctBy { it.id }.take(10)
                         if (heroMovies.isNotEmpty()) {
                             item(key = "row_hero", contentType = "hero_carousel") {
                                 HeroBannerCarousel(
