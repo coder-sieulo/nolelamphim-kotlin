@@ -103,12 +103,15 @@ fun DetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val isTv = LocalIsTv.current
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(CinemaColors.Background),
+            .background(if (isTv) Color.Transparent else CinemaColors.Background),
     ) {
+
+
         when (val s = state) {
             DetailUiState.Loading -> DetailSkeletonScreen()
 
@@ -636,60 +639,69 @@ private fun TvDetailHeader(
 
             BadgeRow(movie = movie)
 
-            // CTA Buttons
+            // CTA Buttons matching Cinefy TV design
             Row(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Play CTA (Liquid Glass Primary)
+                // Play CTA (Cinefy Primary Orange Gradient)
                 Box(
                     modifier = Modifier
                         .cinemaFocusable(
                             onClick = onPlayFirst,
-                            shape = RoundedCornerShape(12.dp),
-                            scaleFocused = 1.08f,
-                            focusedBorderColor = Color.White,
+                            shape = RoundedCornerShape(30.dp),
+                            scaleFocused = 1.05f,
+                            focusedBorderColor = CinemaColors.TvOrangeHighlight,
                         )
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(CinemaColors.Primary, Color(0xFFB70606)),
-                            ),
-                        )
-                        .border(1.dp, Color(0xFFFF6666).copy(alpha = 0.45f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 22.dp, vertical = 12.dp),
+                        .clip(RoundedCornerShape(30.dp))
+                        .background(CinemaColors.TvOrangeGradient)
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Xem ngay", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = Color(0xFF211108),
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = "Xem ngay",
+                            color = Color(0xFF211108),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                        )
                     }
                 }
 
-                // Favorite CTA (Liquid Glass Frosted)
+                // Favorite CTA (Cinefy Glass Button)
                 Box(
                     modifier = Modifier
                         .cinemaFocusable(
                             onClick = onToggleFavorite,
-                            shape = RoundedCornerShape(12.dp),
-                            scaleFocused = 1.08f,
-                            focusedBorderColor = CinemaColors.Primary,
+                            shape = RoundedCornerShape(30.dp),
+                            scaleFocused = 1.05f,
+                            focusedBorderColor = CinemaColors.TvOrangeHighlight,
                         )
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.12f))
-                        .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                        .clip(RoundedCornerShape(30.dp))
+                        .background(Color.White.copy(alpha = 0.10f))
+                        .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(30.dp))
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = null,
-                            tint = if (isFavorite) CinemaColors.Primary else Color.White,
+                            tint = if (isFavorite) CinemaColors.TvOrange else Color.White,
                             modifier = Modifier.size(18.dp),
                         )
-                        Spacer(Modifier.width(8.dp))
                         Text(
                             text = if (isFavorite) "Đã yêu thích" else "Thêm yêu thích",
                             color = Color.White,
@@ -699,31 +711,44 @@ private fun TvDetailHeader(
                     }
                 }
 
-                // Back CTA (Liquid Glass Frosted)
+                // Back CTA (Cinefy Glass Button)
                 Box(
                     modifier = Modifier
                         .cinemaFocusable(
                             onClick = onBack,
-                            shape = RoundedCornerShape(12.dp),
-                            scaleFocused = 1.08f,
-                            focusedBorderColor = Color.White,
+                            shape = RoundedCornerShape(30.dp),
+                            scaleFocused = 1.05f,
+                            focusedBorderColor = CinemaColors.TvOrangeHighlight,
                         )
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(30.dp))
                         .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(30.dp))
                         .padding(horizontal = 18.dp, vertical = 12.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Quay lại", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = "Quay lại",
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 14.sp,
+                        )
                     }
                 }
             }
         }
     }
 }
+
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

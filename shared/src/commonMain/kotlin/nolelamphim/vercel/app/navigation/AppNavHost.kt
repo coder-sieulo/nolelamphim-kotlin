@@ -14,7 +14,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import nolelamphim.shared.generated.resources.Res
 import nolelamphim.shared.generated.resources.nolelamphim_logo
@@ -103,8 +105,28 @@ fun AppNavHost() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(if (isTv) CinemaColors.TvBackground else CinemaColors.Background),
+                .background(if (isTv) CinemaColors.TvBackground else CinemaColors.Background)
+                .drawBehind {
+                    if (isTv) {
+                        // Cinefy ambient lighting matching body:before in cinefy-tv.html
+                        drawRect(
+                            brush = Brush.radialGradient(
+                                colors = listOf(CinemaColors.TvAmbientOrange, Color.Transparent),
+                                center = Offset(size.width * 0.77f, size.height * 0.10f),
+                                radius = size.width * 0.35f,
+                            ),
+                        )
+                        drawRect(
+                            brush = Brush.radialGradient(
+                                colors = listOf(CinemaColors.TvAmbientPurple, Color.Transparent),
+                                center = Offset(size.width * 0.10f, size.height * 0.80f),
+                                radius = size.width * 0.35f,
+                            ),
+                        )
+                    }
+                },
         ) {
+
             // Main Content Area (Fixed 96.dp start padding on TV for Cinefy rail)
             Box(
                 modifier = Modifier

@@ -140,7 +140,7 @@ fun HomeScreen(
                 onRefresh = viewModel::refresh,
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(CinemaColors.Background),
+                    .background(if (isTv) Color.Transparent else CinemaColors.Background),
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(

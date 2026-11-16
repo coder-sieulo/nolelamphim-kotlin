@@ -63,19 +63,28 @@ fun MovieCard(
     modifier: Modifier = Modifier,
     onFocusChanged: ((Boolean) -> Unit)? = null,
 ) {
-    val cardShape = RoundedCornerShape(12.dp)
-    var isFocused by remember { mutableStateOf(false) }
     val isTv = LocalIsTv.current
+    val cardShape = if (isTv) RoundedCornerShape(13.dp) else RoundedCornerShape(12.dp)
+    var isFocused by remember { mutableStateOf(false) }
 
-    val titleColor = if (isFocused) Color.White else CinemaColors.TextPrimary
-    val subtitleColor = if (isFocused) CinemaColors.Primary else CinemaColors.TextMuted
+    val titleColor = if (isFocused) {
+        if (isTv) CinemaColors.TvEyebrowText else Color.White
+    } else {
+        if (isTv) CinemaColors.TvWhite else CinemaColors.TextPrimary
+    }
+    val subtitleColor = if (isFocused) {
+        if (isTv) CinemaColors.TvOrangeHighlight else CinemaColors.Primary
+    } else {
+        if (isTv) CinemaColors.TvMuted else CinemaColors.TextMuted
+    }
 
     Column(
         modifier = modifier
             .cinemaFocusable(
                 onClick = onClick,
                 shape = cardShape,
-                scaleFocused = if (isTv) 1.06f else 1.03f,
+                scaleFocused = if (isTv) 1.075f else 1.03f,
+                focusedBorderColor = if (isTv) CinemaColors.TvOrangeHighlight else CinemaColors.Primary,
                 onFocusChanged = {
                     isFocused = it
                     onFocusChanged?.invoke(it)
@@ -87,7 +96,11 @@ fun MovieCard(
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
                 .clip(cardShape)
-                .background(CinemaColors.SurfaceCard),
+                .background(if (isTv) CinemaColors.TvPosterBg else CinemaColors.SurfaceCard)
+                .then(
+                    if (isTv) Modifier.border(1.dp, Color.White.copy(alpha = 0.09f), cardShape)
+                    else Modifier
+                ),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
@@ -110,18 +123,23 @@ fun MovieCard(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .size(if (isTv) 44.dp else 38.dp)
-                        .background(CinemaColors.Primary, CircleShape)
-                        .border(1.5.dp, Color.White, CircleShape),
+                        .background(
+                            if (isTv) CinemaColors.TvOrangeGradient
+                            else Brush.linearGradient(listOf(CinemaColors.Primary, CinemaColors.PrimaryVariant)),
+                            CircleShape,
+                        )
+                        .border(1.5.dp, if (isTv) Color(0xFFFFD0A9) else Color.White, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Xem",
-                        tint = Color.White,
+                        tint = if (isTv) Color(0xFF211108) else Color.White,
                         modifier = Modifier.size(if (isTv) 24.dp else 20.dp),
                     )
                 }
             }
+
 
             // Top-left: Year pill
             if (movie.year != null && movie.year > 0) {
@@ -216,11 +234,15 @@ fun BackdropMovieCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val cardShape = RoundedCornerShape(12.dp)
-    var isFocused by remember { mutableStateOf(false) }
     val isTv = LocalIsTv.current
+    val cardShape = if (isTv) RoundedCornerShape(13.dp) else RoundedCornerShape(12.dp)
+    var isFocused by remember { mutableStateOf(false) }
     val playIconSize = if (isFocused) 42.dp else 34.dp
-    val titleColor = if (isFocused) Color.White else CinemaColors.TextPrimary
+    val titleColor = if (isFocused) {
+        if (isTv) CinemaColors.TvEyebrowText else Color.White
+    } else {
+        if (isTv) CinemaColors.TvWhite else CinemaColors.TextPrimary
+    }
 
     Column(
         modifier = modifier
@@ -228,6 +250,7 @@ fun BackdropMovieCard(
                 onClick = onClick,
                 shape = cardShape,
                 scaleFocused = if (isTv) 1.05f else 1.02f,
+                focusedBorderColor = if (isTv) CinemaColors.TvOrangeHighlight else CinemaColors.Primary,
                 onFocusChanged = { isFocused = it },
             ),
     ) {
@@ -236,7 +259,11 @@ fun BackdropMovieCard(
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
                 .clip(cardShape)
-                .background(CinemaColors.SurfaceCard),
+                .background(if (isTv) CinemaColors.TvPosterBg else CinemaColors.SurfaceCard)
+                .then(
+                    if (isTv) Modifier.border(1.dp, Color.White.copy(alpha = 0.09f), cardShape)
+                    else Modifier
+                ),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
@@ -262,21 +289,33 @@ fun BackdropMovieCard(
                 modifier = Modifier
                     .size(playIconSize)
                     .clip(CircleShape)
-                    .background(if (isFocused) CinemaColors.Primary else Color.Black.copy(alpha = 0.55f))
+                    .then(
+                        if (isFocused) {
+                            Modifier.background(
+                                if (isTv) CinemaColors.TvOrangeGradient
+                                else Brush.linearGradient(listOf(CinemaColors.Primary, CinemaColors.PrimaryVariant)),
+                                CircleShape,
+                            )
+                        } else {
+                            Modifier.background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                        },
+                    )
                     .border(
                         1.5.dp,
-                        if (isFocused) Color.White else Color.White.copy(alpha = 0.25f),
+                        if (isFocused) (if (isTv) Color(0xFFFFD0A9) else Color.White) else Color.White.copy(alpha = 0.25f),
                         CircleShape,
                     ),
                 contentAlignment = Alignment.Center,
             ) {
+
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (isFocused && isTv) Color(0xFF211108) else Color.White,
                     modifier = Modifier.size(if (isFocused) 26.dp else 20.dp),
                 )
             }
+
 
             // Top-right Rating Pill
             if (movie.rating > 0) {

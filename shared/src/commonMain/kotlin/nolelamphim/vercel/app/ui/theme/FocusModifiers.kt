@@ -85,10 +85,13 @@ fun Modifier.cinemaFocusable(
             scaleY = scale
             if (isFocused && isTv) {
                 shadowElevation = 18.dp.toPx()
+                spotShadowColor = Color(0x80FF812B)
+                ambientShadowColor = Color(0x40FF812B)
                 this.shape = shape
                 this.clip = false
             }
         }
+
         .border(
             width = currentBorderWidth,
             color = effectiveBorderColor,

@@ -62,7 +62,7 @@ fun CatalogScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CinemaColors.Background),
+            .background(if (isTv) Color.Transparent else CinemaColors.Background),
     ) {
         // Top Header
         Row(

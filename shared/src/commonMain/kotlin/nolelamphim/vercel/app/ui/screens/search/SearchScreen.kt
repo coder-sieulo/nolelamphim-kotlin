@@ -75,7 +75,7 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CinemaColors.Background),
+            .background(if (isTv) Color.Transparent else CinemaColors.Background),
     ) {
         // Search Header
         Column(
