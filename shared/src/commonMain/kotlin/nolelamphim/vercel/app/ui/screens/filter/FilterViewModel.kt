@@ -29,10 +29,8 @@ class FilterViewModel(
                     genres = genres,
                     countries = countries,
                 )
-                // If initial query was passed, execute search immediately
-                if (!initialQuery.isNullOrBlank()) {
-                    apply()
-                }
+                // Always load initial catalog for exploration
+                apply()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

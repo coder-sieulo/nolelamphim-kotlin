@@ -15,14 +15,21 @@ import nolelamphim.vercel.app.data.local.LocalLibrary
 class SearchViewModel(
     private val repository: MovieRepository,
     private val localLibrary: LocalLibrary,
+    initialQuery: String? = null,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SearchUiState())
+    private val _uiState = MutableStateFlow(SearchUiState(query = initialQuery?.trim().orEmpty()))
     val uiState = _uiState.asStateFlow()
 
     val searchHistory: StateFlow<List<String>> = localLibrary.searchHistory
 
     private var searchJob: Job? = null
+
+    init {
+        if (!initialQuery.isNullOrBlank()) {
+            submitSearch()
+        }
+    }
 
     fun onQueryChange(query: String) {
         _uiState.value = _uiState.value.copy(query = query)

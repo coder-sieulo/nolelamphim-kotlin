@@ -3,6 +3,7 @@ package nolelamphim.vercel.app.navigation
 object Routes {
     const val HOME = "home"
     const val SEARCH = "search"
+    const val SEARCH_QUERY = "search/{query}"
     const val LIBRARY = "library"
     const val FILTER = "filter"
     const val FILTER_QUERY = "filter/{query}"
@@ -14,6 +15,9 @@ object Routes {
     fun catalog(type: String) = "catalog/$type"
 
     fun detail(slug: String) = "detail/$slug"
+
+    fun search(query: String? = null): String =
+        if (query.isNullOrBlank()) "search" else "search/${query.trim()}"
 
     fun filter(query: String? = null): String =
         if (query.isNullOrBlank()) "filter" else "filter/${query.trim()}"

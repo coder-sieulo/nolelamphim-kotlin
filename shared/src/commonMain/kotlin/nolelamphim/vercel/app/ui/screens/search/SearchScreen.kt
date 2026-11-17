@@ -61,10 +61,15 @@ import nolelamphim.vercel.app.ui.theme.cinemaFocusable
 
 @Composable
 fun SearchScreen(
+    initialQuery: String? = null,
     onMovieClick: (Movie) -> Unit,
     onOpenFilter: () -> Unit,
-    viewModel: SearchViewModel = viewModel {
-        SearchViewModel(AppContainer.movieRepository, AppContainer.localLibrary)
+    viewModel: SearchViewModel = viewModel(key = "search_${initialQuery.orEmpty()}") {
+        SearchViewModel(
+            repository = AppContainer.movieRepository,
+            localLibrary = AppContainer.localLibrary,
+            initialQuery = initialQuery,
+        )
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()

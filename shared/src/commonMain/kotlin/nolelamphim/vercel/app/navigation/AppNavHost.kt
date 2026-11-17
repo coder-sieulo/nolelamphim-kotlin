@@ -98,7 +98,7 @@ fun AppNavHost() {
     val currentRoute = backStackEntry?.destination?.route
     val isTv = remember { getPlatform().isTv }
 
-    val isTopLevelRoute = currentRoute in listOf(Routes.HOME, Routes.SEARCH, Routes.LIBRARY, Routes.FILTER) || currentRoute?.startsWith("filter") == true
+    val isTopLevelRoute = currentRoute in listOf(Routes.HOME, Routes.SEARCH, Routes.LIBRARY, Routes.FILTER) || currentRoute?.startsWith("filter") == true || currentRoute?.startsWith("search") == true
     val isFullscreenRoute = currentRoute?.startsWith("watch") == true
 
     CompositionLocalProvider(LocalIsTv provides isTv) {
@@ -157,7 +157,7 @@ fun AppNavHost() {
                                 }
                             },
                             onSearchSubmit = { query ->
-                                navController.navigate(Routes.filter(query)) {
+                                navController.navigate(Routes.search(query)) {
                                     launchSingleTop = true
                                 }
                             },
@@ -166,6 +166,27 @@ fun AppNavHost() {
 
                     composable(Routes.SEARCH) {
                         SearchScreen(
+                            initialQuery = null,
+                            onMovieClick = { movie ->
+                                navController.navigate(Routes.detail(movie.slug))
+                            },
+                            onOpenFilter = {
+                                navController.navigate(Routes.FILTER) {
+                                    launchSingleTop = true
+                                }
+                            },
+                        )
+                    }
+
+                    composable(
+                        route = Routes.SEARCH_QUERY,
+                        arguments = listOf(
+                            navArgument("query") { type = NavType.StringType },
+                        ),
+                    ) { entry ->
+                        val query = entry.arguments?.read { getStringOrNull("query") }
+                        SearchScreen(
+                            initialQuery = query,
                             onMovieClick = { movie ->
                                 navController.navigate(Routes.detail(movie.slug))
                             },
@@ -352,8 +373,15 @@ fun AppNavHost() {
                                 launchSingleTop = true
                             }
                         },
-                        onFilter = {
+                        onExplore = {
                             navController.navigate(Routes.FILTER) {
+                                popUpTo(Routes.HOME) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        onSearch = {
+                            navController.navigate(Routes.SEARCH) {
                                 popUpTo(Routes.HOME) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
@@ -416,10 +444,12 @@ fun AppNavHost() {
 private fun MobileBottomNav(
     currentRoute: String?,
     onHome: () -> Unit,
-    onFilter: () -> Unit,
+    onExplore: () -> Unit,
+    onSearch: () -> Unit,
     onLibrary: () -> Unit,
 ) {
-    val isFilterSelected = currentRoute == Routes.FILTER || currentRoute?.startsWith("filter") == true || currentRoute == Routes.SEARCH
+    val isExploreSelected = currentRoute == Routes.FILTER || currentRoute?.startsWith("filter") == true
+    val isSearchSelected = currentRoute == Routes.SEARCH || currentRoute?.startsWith("search") == true
 
     Column(
         modifier = Modifier
@@ -449,10 +479,17 @@ private fun MobileBottomNav(
                 modifier = Modifier.weight(1f),
             )
             MobileNavItem(
+                icon = Icons.Default.Explore,
+                label = "Khám phá",
+                isSelected = isExploreSelected,
+                onClick = onExplore,
+                modifier = Modifier.weight(1f),
+            )
+            MobileNavItem(
                 icon = Icons.Default.Search,
-                label = "Tìm kiếm & Lọc",
-                isSelected = isFilterSelected,
-                onClick = onFilter,
+                label = "Tìm kiếm",
+                isSelected = isSearchSelected,
+                onClick = onSearch,
                 modifier = Modifier.weight(1f),
             )
             MobileNavItem(
@@ -518,7 +555,7 @@ private fun TvSideNavigationRail(
     modifier: Modifier = Modifier,
 ) {
     val isFilterSelected = currentRoute == Routes.FILTER || currentRoute?.startsWith("filter") == true
-    val isSearchSelected = currentRoute == Routes.SEARCH
+    val isSearchSelected = currentRoute == Routes.SEARCH || currentRoute?.startsWith("search") == true
 
     val railGradient = Brush.horizontalGradient(
         listOf(
