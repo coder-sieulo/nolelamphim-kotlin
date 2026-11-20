@@ -64,6 +64,10 @@ fun MovieCard(
     onFocusChanged: ((Boolean) -> Unit)? = null,
 ) {
     val isTv = LocalIsTv.current
+    if (isTv) {
+        TvPosterCard(movie, onClick, modifier, onFocusChanged)
+        return
+    }
     val cardShape = if (isTv) RoundedCornerShape(13.dp) else RoundedCornerShape(12.dp)
     var isFocused by remember { mutableStateOf(false) }
 
@@ -235,6 +239,10 @@ fun BackdropMovieCard(
     modifier: Modifier = Modifier,
 ) {
     val isTv = LocalIsTv.current
+    if (isTv) {
+        TvPosterCard(movie, onClick, modifier)
+        return
+    }
     val cardShape = if (isTv) RoundedCornerShape(13.dp) else RoundedCornerShape(12.dp)
     var isFocused by remember { mutableStateOf(false) }
     val playIconSize = if (isFocused) 42.dp else 34.dp
@@ -377,6 +385,10 @@ fun SpotlightMovieCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (LocalIsTv.current) {
+        HeroBanner(movie = movie, onMovieClick = { onClick() }, modifier = modifier)
+        return
+    }
     val cardShape = RoundedCornerShape(16.dp)
 
     Box(
@@ -472,6 +484,71 @@ fun SpotlightMovieCard(
                 }
             }
         }
+    }
+}
+
+/** A stable poster target: focus never changes its content, type or geometry. */
+@Composable
+private fun TvPosterCard(
+    movie: Movie,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onFocusChanged: ((Boolean) -> Unit)? = null,
+) {
+    val shape = RoundedCornerShape(8.dp)
+    val metadata = buildList {
+        movie.year?.takeIf { it > 0 }?.let { add(it.toString()) }
+        movie.rating.takeIf { it.isFinite() && it > 0.0 && it <= 10.0 }
+            ?.let { add("★ ${((it * 10).toInt() / 10.0)}") }
+    }.joinToString(" · ")
+    Column(
+        modifier = modifier
+            .cinemaFocusable(
+                onClick = onClick,
+                shape = shape,
+                scaleFocused = 1f,
+                focusedBorderColor = CinemaColors.TvWhite,
+                onFocusChanged = onFocusChanged,
+            )
+            .padding(4.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f)
+                .clip(shape)
+                .background(CinemaColors.TvPosterBg),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = movie.name.take(1),
+                style = MaterialTheme.typography.headlineMedium,
+                color = CinemaColors.TvMuted,
+            )
+            AsyncImage(
+                model = movie.posterUrl ?: movie.thumbUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = movie.name,
+            style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, lineHeight = 22.sp),
+            color = CinemaColors.TvWhite,
+            fontWeight = FontWeight.SemiBold,
+            minLines = 2,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = metadata.ifBlank { " " },
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp, lineHeight = 20.sp),
+            color = CinemaColors.TvMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

@@ -98,6 +98,11 @@ fun AppNavHost() {
     val currentRoute = backStackEntry?.destination?.route
     val isTv = remember { getPlatform().isTv }
 
+    if (isTv) {
+        nolelamphim.vercel.app.ui.tv.TvAppNavHost()
+        return
+    }
+
     val isTopLevelRoute = currentRoute in listOf(Routes.HOME, Routes.SEARCH, Routes.LIBRARY, Routes.FILTER) || currentRoute?.startsWith("filter") == true || currentRoute?.startsWith("search") == true
     val isFullscreenRoute = currentRoute?.startsWith("watch") == true
 

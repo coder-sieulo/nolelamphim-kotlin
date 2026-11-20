@@ -1,5 +1,6 @@
 package nolelamphim.vercel.app.ui.components
 
+import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -22,7 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
@@ -39,22 +43,26 @@ actual fun VideoPlayer(
     initialPositionMs: Long,
     showControls: Boolean,
     onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)?,
+    controller: PlaybackController?,
+    allowEmbeddedPlayback: Boolean,
+    onPlaybackStopped: (() -> Unit)?,
 ) {
     val streamUrl = remember(url) { StreamUrlResolver.resolve(url) }
     if (streamUrl == null) {
-        // Unknown source shape: keep the original page player as a safety net.
-        EmbeddedWebPlayer(url = fallbackUrl ?: url, modifier = modifier)
+        if (allowEmbeddedPlayback) {
+            EmbeddedWebPlayer(url = fallbackUrl ?: url, modifier = modifier)
+        } else {
+            LaunchedEffect(url, controller) {
+                controller?.update(PlaybackSnapshot(
+                    status = PlaybackStatus.Error,
+                    errorMessage = "Nguồn này chưa hỗ trợ phát bằng remote. Hãy chọn nguồn khác.",
+                ))
+            }
+            Box(modifier.background(Color.Black))
+        }
     } else {
-        NativeVideoPlayer(
-            streamUrl = streamUrl,
-            modifier = modifier,
-            playbackSpeed = playbackSpeed,
-            resizeMode = resizeMode,
-            seekDelta = seekDelta,
-            initialPositionMs = initialPositionMs,
-            showControls = showControls,
-            onPositionChanged = onPositionChanged,
-        )
+        NativeVideoPlayer(streamUrl, modifier, playbackSpeed, resizeMode, seekDelta,
+            initialPositionMs, showControls, onPositionChanged, controller, onPlaybackStopped)
     }
 }
 
@@ -68,90 +76,129 @@ private fun NativeVideoPlayer(
     initialPositionMs: Long,
     showControls: Boolean,
     onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)?,
+    controller: PlaybackController?,
+    onPlaybackStopped: (() -> Unit)?,
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val sessionKey = controller?.sessionKey ?: streamUrl
+    val player = remember(streamUrl, sessionKey) { SharedPlayerSession.getOrCreate(context, streamUrl, initialPositionMs, sessionKey) }
+    // Freeze callbacks with the media session. A late disposal/event must never call a new
+    // episode's callback after Compose has already updated the surrounding parameters.
+    val progressCallback = remember(player) { onPositionChanged }
+    val stoppedCallback = remember(player) { onPlaybackStopped }
 
-    val player = remember(streamUrl) {
-        SharedPlayerSession.getOrCreate(context, streamUrl, initialPositionMs)
+    fun publish() {
+        val position = player.currentPosition.coerceAtLeast(0L)
+        val duration = player.duration.coerceAtLeast(0L)
+        val status = when {
+            player.playerError != null -> PlaybackStatus.Error
+            player.playbackState == Player.STATE_ENDED -> PlaybackStatus.Ended
+            player.playbackState == Player.STATE_IDLE -> PlaybackStatus.Preparing
+            player.playbackState == Player.STATE_BUFFERING && player.playWhenReady -> PlaybackStatus.Buffering
+            player.isPlaying -> PlaybackStatus.Playing
+            else -> PlaybackStatus.Paused
+        }
+        controller?.update(PlaybackSnapshot(
+            status = status,
+            positionMs = position,
+            durationMs = duration,
+            bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),
+            canSeek = player.isCurrentMediaItemSeekable,
+            playWhenReady = player.playWhenReady,
+            isForeground = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED),
+            errorMessage = if (player.playerError != null) "Không phát được nguồn này. Kiểm tra mạng hoặc chọn nguồn khác." else null,
+        ))
+        if (position > 0L || duration > 0L) progressCallback?.invoke(position, duration)
     }
 
-    LaunchedEffect(player, playbackSpeed) {
-        player.setPlaybackSpeed(playbackSpeed)
-    }
-
-    LaunchedEffect(seekDelta) {
+    LaunchedEffect(player, playbackSpeed) { player.setPlaybackSpeed(playbackSpeed) }
+    LaunchedEffect(player, seekDelta) {
         if (seekDelta != 0L) {
-            val currentPos = player.currentPosition
-            val totalDuration = player.duration.coerceAtLeast(0L)
-            val target = if (totalDuration > 0L) {
-                (currentPos + seekDelta).coerceIn(0L, totalDuration)
-            } else {
-                (currentPos + seekDelta).coerceAtLeast(0L)
-            }
-            player.seekTo(target)
+            val duration = player.duration.coerceAtLeast(0L)
+            val target = (player.currentPosition + seekDelta).coerceAtLeast(0L)
+            player.seekTo(if (duration > 0L) target.coerceAtMost(duration) else target)
         }
     }
-
-    // Periodically update progress callback every 500ms
-    LaunchedEffect(player, onPositionChanged) {
-        if (onPositionChanged == null) return@LaunchedEffect
-        while (true) {
-            val cur = player.currentPosition.coerceAtLeast(0L)
-            val dur = player.duration.coerceAtLeast(0L)
-            if (cur > 0L || dur > 0L) {
-                onPositionChanged(cur, dur)
+    val command = controller?.command
+    LaunchedEffect(player, command?.id) {
+        when (command?.action) {
+            PlaybackAction.Play -> { if (player.playbackState == Player.STATE_ENDED) player.seekTo(0L); player.play() }
+            PlaybackAction.Pause -> player.pause()
+            PlaybackAction.Toggle -> when {
+                player.playbackState == Player.STATE_ENDED -> { player.seekTo(0L); player.play() }
+                player.isPlaying || player.playWhenReady -> player.pause()
+                else -> player.play()
             }
-            delay(500)
+            PlaybackAction.Seek -> {
+                if (player.isCurrentMediaItemSeekable) {
+                    val duration = player.duration.coerceAtLeast(0L)
+                    player.seekTo(if (duration > 0L) command.value.coerceIn(0L, duration) else command.value.coerceAtLeast(0L))
+                }
+            }
+            PlaybackAction.Retry -> { player.prepare(); player.play() }
+            PlaybackAction.Speed -> player.setPlaybackSpeed(command.value / 1000f)
+            null -> Unit
         }
+        publish()
     }
-
-    DisposableEffect(streamUrl) {
+    LaunchedEffect(player, controller) {
+        while (true) { publish(); delay(500) }
+    }
+    DisposableEffect(player, controller, lifecycleOwner) {
+        val listener = object : Player.Listener {
+            override fun onEvents(player: Player, events: Player.Events) { publish() }
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                // Resuming the Activity never silently restarts playback.
+                player.pause()
+                publish()
+                stoppedCallback?.invoke()
+            }
+            if (event == Lifecycle.Event.ON_RESUME) publish()
+        }
+        player.addListener(listener)
+        lifecycleOwner.lifecycle.addObserver(observer)
+        publish()
         onDispose {
-            val cur = player.currentPosition.coerceAtLeast(0L)
-            val dur = player.duration.coerceAtLeast(0L)
-            if (cur > 0L) {
-                onPositionChanged?.invoke(cur, dur)
-            }
-            if (!SharedPlayerSession.isRetained) {
-                SharedPlayerSession.releaseIfUnused(streamUrl)
-            } else {
-                // Was retained for transition (minimizing/expanding), reset flag for next cycle
-                SharedPlayerSession.isRetained = false
-            }
+            // A changed stream can replace/release the shared session before this surface disposes.
+            runCatching { publish() }
+            stoppedCallback?.invoke()
+            runCatching { player.removeListener(listener) }
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (!SharedPlayerSession.isRetained) SharedPlayerSession.releaseIfUnused(streamUrl, sessionKey)
+            else SharedPlayerSession.isRetained = false
         }
     }
-
     val exoResizeMode = when (resizeMode) {
         VideoResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
         VideoResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
         VideoResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
     }
-
     AndroidView(
         modifier = modifier,
         factory = { viewContext ->
             PlayerView(viewContext).apply {
                 this.player = player
-                useController = showControls
                 keepScreenOn = true
+                setControllerShowTimeoutMs(4000)
                 setShowBuffering(if (showControls) PlayerView.SHOW_BUFFERING_WHEN_PLAYING else PlayerView.SHOW_BUFFERING_NEVER)
+                useController = showControls
+                isFocusable = showControls
+                descendantFocusability = if (showControls) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
                 this.resizeMode = exoResizeMode
-                if (showControls) {
-                    setControllerShowTimeoutMs(3000)
-                }
             }
         },
         update = { view ->
-            if (view.player != player) {
-                view.player = player
-            }
+            view.player = player
             view.useController = showControls
+            view.isFocusable = showControls
+            view.descendantFocusability = if (showControls) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
             view.resizeMode = exoResizeMode
+            if (!showControls) view.hideController()
         },
-        onRelease = { view ->
-            // Detach player from view to allow clean surface transition
-            view.player = null
-        },
+        onRelease = { it.player = null },
     )
 }
 

@@ -27,4 +27,7 @@ expect fun VideoPlayer(
     initialPositionMs: Long = 0L,
     showControls: Boolean = true,
     onPositionChanged: ((currentMs: Long, durationMs: Long) -> Unit)? = null,
+    controller: PlaybackController? = null,
+    allowEmbeddedPlayback: Boolean = true,
+    onPlaybackStopped: (() -> Unit)? = null,
 )

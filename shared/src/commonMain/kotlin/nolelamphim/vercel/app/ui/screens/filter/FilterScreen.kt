@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,17 +56,27 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nolelamphim.vercel.app.data.Taxonomy
@@ -78,6 +90,8 @@ import nolelamphim.vercel.app.ui.theme.CinemaColors
 import nolelamphim.vercel.app.ui.theme.LocalIsTv
 import nolelamphim.vercel.app.ui.theme.bounceClick
 import nolelamphim.vercel.app.ui.theme.cinemaFocusable
+import nolelamphim.vercel.app.ui.tv.TvBrowseButton
+import nolelamphim.vercel.app.ui.tv.TvBrowseMessage
 
 private val filterYears = (2026 downTo 1995).toList()
 
@@ -97,6 +111,10 @@ fun FilterScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val isTv = LocalIsTv.current
+    if (isTv) {
+        TvExploreScreen(state, viewModel, onMovieClick)
+        return
+    }
     val horizontalPadding = if (isTv) 28.dp else 16.dp
 
     val selectedGenreName = state.genres.firstOrNull { it.slug == state.selectedGenre }?.name
@@ -525,6 +543,181 @@ fun FilterScreen(
                         onLoadMore = viewModel::loadMore,
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvExploreScreen(
+    state: FilterUiState,
+    viewModel: FilterViewModel,
+    onMovieClick: (Movie) -> Unit,
+) {
+    var filtersOpen by rememberSaveable { mutableStateOf(false) }
+    var focusResults by rememberSaveable { mutableStateOf(false) }
+    val filterRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
+    val criteriaKey = "${state.query}|${state.selectedGenre}|${state.selectedCountry}|${state.selectedYear}|${state.sort}"
+    val summary = buildList {
+        state.query.takeIf { it.isNotBlank() }?.let { add("Từ khóa: $it") }
+        state.genres.firstOrNull { it.slug == state.selectedGenre }?.let { add(it.name) }
+        state.countries.firstOrNull { it.slug == state.selectedCountry }?.let { add(it.name) }
+        state.selectedYear?.let { add(it.toString()) }
+        if (state.sort != SortOption.DEFAULT) add("${state.sort.label} trong danh sách đã tải")
+    }.joinToString(" · ").ifBlank { "Tất cả phim · Chọn Bộ lọc để thu gọn danh sách" }
+    fun closeFilters() {
+        filtersOpen = false
+        scope.launch {
+            withFrameNanos { }
+            filterRequester.requestFocus()
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Khám phá", fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = CinemaColors.TextPrimary)
+                Text(summary, fontSize = 15.sp, lineHeight = 21.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = CinemaColors.TextSecondary)
+            }
+            if (state.query.isNotBlank()) {
+                TvBrowseButton("Xóa từ khóa", viewModel::clearQueryAndApply, navigateUpToMenu = true)
+            }
+            TvBrowseButton("Bộ lọc", { filtersOpen = true }, Modifier.focusRequester(filterRequester), navigateUpToMenu = true)
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                state.isLoading && state.results.isEmpty() -> TvBrowseMessage("Đang tải phim", "Danh sách sẽ xuất hiện tại đây.")
+                state.error != null && state.results.isEmpty() -> TvBrowseMessage(
+                    "Chưa tải được phim", "Kiểm tra kết nối rồi thử lại.", "Thử lại", viewModel::apply, requestFocus = !filtersOpen,
+                )
+                state.results.isEmpty() -> TvBrowseMessage(
+                    "Không tìm thấy phim phù hợp", "Thử thay đổi thể loại, quốc gia hoặc năm phát hành.",
+                    "Sửa bộ lọc", { filtersOpen = true }, requestFocus = !filtersOpen,
+                )
+                else -> key(criteriaKey) {
+                    MovieGrid(
+                        movies = state.results,
+                        onMovieClick = onMovieClick,
+                        modifier = Modifier.fillMaxSize(),
+                        onLoadMore = if (state.error == null) viewModel::loadMore else null,
+                        focusKey = "explore:$criteriaKey",
+                        requestInitialFocus = focusResults && !filtersOpen,
+                        topFocusRequester = filterRequester,
+                        focusEnabled = !filtersOpen,
+                    )
+                }
+            }
+        }
+        if (state.error != null && state.results.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Chưa tải thêm được phim", fontSize = 15.sp, color = CinemaColors.TextSecondary, modifier = Modifier.weight(1f))
+                TvBrowseButton("Thử lại", viewModel::loadMore)
+            }
+        }
+        if (state.isLoadingMore) {
+            Text("Đang tải thêm…", fontSize = 15.sp, color = CinemaColors.TextSecondary, modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp))
+        }
+    }
+    if (filtersOpen) {
+        TvFilterPanel(
+            state = state,
+            onDismiss = ::closeFilters,
+            onReloadTaxonomy = viewModel::loadTaxonomy,
+            onApply = { genre, country, year, sort ->
+                focusResults = true
+                filtersOpen = false
+                viewModel.applyFilters(genre, country, year, sort)
+            },
+        )
+    }
+}
+
+private data class TvFilterChoice(val key: String, val label: String)
+
+@Composable
+private fun TvFilterPanel(
+    state: FilterUiState,
+    onDismiss: () -> Unit,
+    onReloadTaxonomy: () -> Unit,
+    onApply: (String?, String?, Int?, SortOption) -> Unit,
+) {
+    var genre by remember { mutableStateOf(state.selectedGenre) }
+    var country by remember { mutableStateOf(state.selectedCountry) }
+    var year by remember { mutableStateOf(state.selectedYear) }
+    var sort by remember { mutableStateOf(state.sort) }
+    var group by remember { mutableIntStateOf(if (state.query.isBlank()) 0 else 2) }
+    val optionRequester = remember { FocusRequester() }
+    val selectedKey = when (group) {
+        0 -> genre.orEmpty()
+        1 -> country.orEmpty()
+        2 -> year?.toString().orEmpty()
+        else -> sort.name
+    }
+    val choices = when (group) {
+        0 -> listOf(TvFilterChoice("", "Tất cả thể loại")) + state.genres.map { TvFilterChoice(it.slug, it.name) }
+        1 -> listOf(TvFilterChoice("", "Tất cả quốc gia")) + state.countries.map { TvFilterChoice(it.slug, it.name) }
+        2 -> listOf(TvFilterChoice("", "Tất cả các năm")) + filterYears.map { TvFilterChoice(it.toString(), it.toString()) }
+        else -> SortOption.entries.map { TvFilterChoice(it.name, it.label) }
+    }
+    val initialChoiceKey = selectedKey.takeIf { selected -> choices.any { it.key == selected } } ?: choices.first().key
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier.fillMaxWidth(0.86f).widthIn(max = 840.dp).height(480.dp)
+                .background(CinemaColors.SurfaceElevated, RoundedCornerShape(12.dp)).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("Bộ lọc phim", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = CinemaColors.TextPrimary)
+            Text(
+                if (state.query.isBlank()) "Chọn tiêu chí rồi nhấn Áp dụng. Quay lại để hủy thay đổi."
+                else "Lọc năm trong kết quả tìm kiếm. Xóa từ khóa để lọc theo thể loại và quốc gia.",
+                fontSize = 15.sp, color = CinemaColors.TextSecondary,
+            )
+            Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                Column(Modifier.width(190.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Thể loại", "Quốc gia", "Năm phát hành", "Sắp xếp đã tải").forEachIndexed { index, label ->
+                        TvBrowseButton(label, { group = index }, Modifier.fillMaxWidth(), isSelected = group == index,
+                            enabled = state.query.isBlank() || index >= 2)
+                    }
+                }
+                key(group) {
+                    val listState = rememberLazyListState(initialFirstVisibleItemIndex = choices.indexOfFirst { it.key == initialChoiceKey }.coerceAtLeast(0))
+                    LazyColumn(Modifier.weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(4.dp)) {
+                        items(choices, key = { it.key }) { choice ->
+                            TvBrowseButton(
+                                text = if (choice.key == selectedKey) "✓ ${choice.label}" else choice.label,
+                                onClick = {
+                                    when (group) {
+                                        0 -> genre = choice.key.ifBlank { null }
+                                        1 -> country = choice.key.ifBlank { null }
+                                        2 -> year = choice.key.toIntOrNull()
+                                        else -> sort = SortOption.valueOf(choice.key)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().then(if (choice.key == initialChoiceKey) Modifier.focusRequester(optionRequester) else Modifier),
+                                isSelected = choice.key == selectedKey,
+                            )
+                        }
+                    }
+                    LaunchedEffect(Unit) {
+                        withFrameNanos { }
+                        optionRequester.requestFocus()
+                    }
+                }
+            }
+            if (state.taxonomyError != null && group < 2) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Không tải được danh mục lọc", fontSize = 14.sp, color = CinemaColors.TextSecondary, modifier = Modifier.weight(1f))
+                    TvBrowseButton("Thử lại", onReloadTaxonomy)
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TvBrowseButton("Hủy", onDismiss, Modifier.weight(1f))
+                TvBrowseButton("Đặt lại", { genre = null; country = null; year = null; sort = SortOption.DEFAULT }, Modifier.weight(1f))
+                TvBrowseButton("Áp dụng", { onApply(genre, country, year, sort) }, Modifier.weight(1f), primary = true)
             }
         }
     }

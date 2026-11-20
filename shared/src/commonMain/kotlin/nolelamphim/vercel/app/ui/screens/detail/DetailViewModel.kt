@@ -3,6 +3,7 @@ package nolelamphim.vercel.app.ui.screens.detail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -18,6 +19,7 @@ class DetailViewModel(
 
     private val _uiState = MutableStateFlow<DetailUiState>(DetailUiState.Loading)
     val uiState = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
     init {
         load()
@@ -34,10 +36,16 @@ class DetailViewModel(
     }
 
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _uiState.value = DetailUiState.Loading
             try {
                 val detail = repository.detail(slug)
+                _uiState.value = DetailUiState.Success(
+                    movie = detail,
+                    related = emptyList(),
+                    isFavorite = localLibrary.isFavorite(slug),
+                )
                 val related = try {
                     repository.relatedMovies(slug, detail.categorySlugs.firstOrNull())
                 } catch (e: CancellationException) {

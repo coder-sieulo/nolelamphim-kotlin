@@ -111,6 +111,17 @@ fun HomeScreen(
     val continueWatching by viewModel.continueWatching.collectAsStateWithLifecycle()
     val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
     val isTv = LocalIsTv.current
+    if (isTv) {
+        nolelamphim.vercel.app.ui.tv.TvHomeLibraryScreen(
+            state = state,
+            entries = continueWatching,
+            onMovieClick = onMovieClick,
+            onContinueClick = onContinueClick,
+            onSeeAll = onSeeAll,
+            onRetry = viewModel::load,
+        )
+        return
+    }
     var isSearchExpanded by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedTvMovieForDetail by remember { mutableStateOf<Movie?>(null) }

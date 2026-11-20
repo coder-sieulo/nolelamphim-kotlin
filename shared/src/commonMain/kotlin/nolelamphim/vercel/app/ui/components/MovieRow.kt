@@ -1,6 +1,7 @@
 package nolelamphim.vercel.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,18 +30,27 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.flow.first
 import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.ui.theme.CinemaColors
 import nolelamphim.vercel.app.ui.theme.LocalIsTv
@@ -53,10 +63,17 @@ fun MovieRow(
     onMovieClick: (Movie) -> Unit,
     modifier: Modifier = Modifier,
     onSeeAll: (() -> Unit)? = null,
+    rowFocusRequester: FocusRequester? = null,
+    onRowFocused: (() -> Unit)? = null,
+    onRowReady: (() -> Unit)? = null,
 ) {
     if (movies.isEmpty()) return
 
     val isTv = LocalIsTv.current
+    if (isTv) {
+        TvPosterRow(title, movies, onMovieClick, modifier, onSeeAll, rowFocusRequester, onRowFocused, onRowReady)
+        return
+    }
     val listState = rememberLazyListState()
     val cardWidth = if (isTv) 175.dp else 136.dp
     val horizontalPadding = if (isTv) 24.dp else 16.dp
@@ -145,6 +162,11 @@ fun TopRankingRow(
     if (movies.isEmpty()) return
 
     val isTv = LocalIsTv.current
+    if (isTv) {
+        // The catalogue does not supply a daily ranking signal.
+        TvPosterRow("Nổi bật", movies.take(10), onMovieClick, modifier)
+        return
+    }
     val listState = rememberLazyListState()
     val topMovies = movies.take(10)
     val horizontalPadding = if (isTv) 24.dp else 16.dp
@@ -325,6 +347,10 @@ fun BackdropMovieRow(
     if (movies.isEmpty()) return
 
     val isTv = LocalIsTv.current
+    if (isTv) {
+        TvPosterRow(title, movies, onMovieClick, modifier, onSeeAll)
+        return
+    }
     val listState = rememberLazyListState()
     val cardWidth = if (isTv) 260.dp else 210.dp
     val horizontalPadding = if (isTv) 24.dp else 16.dp
@@ -394,6 +420,84 @@ fun BackdropMovieRow(
                     movie = movie,
                     onClick = { onMovieClick(movie) },
                     modifier = Modifier.width(cardWidth),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvPosterRow(
+    title: String,
+    movies: List<Movie>,
+    onMovieClick: (Movie) -> Unit,
+    modifier: Modifier = Modifier,
+    onSeeAll: (() -> Unit)? = null,
+    rowFocusRequester: FocusRequester? = null,
+    onRowFocused: (() -> Unit)? = null,
+    onRowReady: (() -> Unit)? = null,
+) {
+    val listState = rememberLazyListState()
+    var focusedSlug by rememberSaveable { mutableStateOf(movies.first().slug) }
+    val restoreSlug = focusedSlug.takeIf { slug -> movies.any { it.slug == slug } } ?: movies.first().slug
+    val defaultRequester = remember { FocusRequester() }
+    val fallbackRequester = rowFocusRequester ?: defaultRequester
+    LaunchedEffect(rowFocusRequester) {
+        if (rowFocusRequester == null) return@LaunchedEffect
+        val index = movies.indexOfFirst { it.slug == restoreSlug }.coerceAtLeast(0)
+        val itemKey = movies[index].id
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
+        if (listState.layoutInfo.visibleItemsInfo.none { it.key == itemKey }) listState.scrollToItem(index)
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.any { it.key == itemKey } }.first { it }
+        withFrameNanos { }
+        onRowReady?.invoke()
+    }
+    Column(modifier = modifier.fillMaxWidth()
+        .onFocusChanged { if (it.hasFocus) onRowFocused?.invoke() }.focusGroup()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp),
+                color = CinemaColors.TvWhite,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            if (onSeeAll != null) {
+                Text(
+                    text = "Xem tất cả",
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp),
+                    color = CinemaColors.TvMuted,
+                    modifier = Modifier
+                        .cinemaFocusable(
+                            onClick = onSeeAll,
+                            shape = RoundedCornerShape(8.dp),
+                            scaleFocused = 1f,
+                            focusedBorderColor = CinemaColors.TvWhite,
+                        )
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                )
+            }
+        }
+        LazyRow(
+            state = listState,
+            modifier = Modifier.focusRestorer(fallback = fallbackRequester).focusGroup(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(movies, key = { it.id }, contentType = { "tv_poster" }) { movie ->
+                MovieCard(
+                    movie = movie,
+                    onClick = { onMovieClick(movie) },
+                    onFocusChanged = { focused -> if (focused) focusedSlug = movie.slug },
+                    modifier = Modifier
+                        .width(152.dp)
+                        .then(if (movie.slug == restoreSlug) Modifier.focusRequester(fallbackRequester) else Modifier),
                 )
             }
         }

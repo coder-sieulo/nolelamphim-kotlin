@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 object SharedPlayerSession {
     private var exoPlayer: ExoPlayer? = null
     private var currentStreamUrl: String? = null
+    private var currentSessionKey: String? = null
 
     @Volatile
     var isRetained: Boolean = false
@@ -28,9 +29,10 @@ object SharedPlayerSession {
         context: Context,
         streamUrl: String,
         initialPositionMs: Long = 0L,
+        sessionKey: String = streamUrl,
     ): ExoPlayer {
         val existing = exoPlayer
-        if (existing != null && currentStreamUrl == streamUrl) {
+        if (existing != null && currentStreamUrl == streamUrl && currentSessionKey == sessionKey) {
             // Reusing running player session - seamlessly continuous!
             return existing
         }
@@ -44,6 +46,8 @@ object SharedPlayerSession {
         )
         val builder = ExoPlayer.Builder(appContext)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setSeekBackIncrementMs(10_000L)
+            .setSeekForwardIncrementMs(10_000L)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -74,15 +78,17 @@ object SharedPlayerSession {
 
         exoPlayer = newPlayer
         currentStreamUrl = streamUrl
+        currentSessionKey = sessionKey
         isRetained = false
         return newPlayer
     }
 
-    fun releaseIfUnused(streamUrl: String) {
-        if (!isRetained && currentStreamUrl == streamUrl) {
+    fun releaseIfUnused(streamUrl: String, sessionKey: String = streamUrl) {
+        if (!isRetained && currentStreamUrl == streamUrl && currentSessionKey == sessionKey) {
             exoPlayer?.release()
             exoPlayer = null
             currentStreamUrl = null
+            currentSessionKey = null
         }
     }
 
@@ -91,6 +97,7 @@ object SharedPlayerSession {
         exoPlayer?.release()
         exoPlayer = null
         currentStreamUrl = null
+        currentSessionKey = null
     }
 
     fun currentPosition(): Long = exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L

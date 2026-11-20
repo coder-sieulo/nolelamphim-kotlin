@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -38,17 +41,34 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import nolelamphim.vercel.app.di.AppContainer
 import nolelamphim.vercel.app.model.Movie
 import nolelamphim.vercel.app.ui.components.EmptyView
@@ -58,6 +78,10 @@ import nolelamphim.vercel.app.ui.components.MovieGrid
 import nolelamphim.vercel.app.ui.theme.CinemaColors
 import nolelamphim.vercel.app.ui.theme.LocalIsTv
 import nolelamphim.vercel.app.ui.theme.cinemaFocusable
+import nolelamphim.vercel.app.ui.tv.TvBrowseButton
+import nolelamphim.vercel.app.ui.tv.TvBrowseConfirmation
+import nolelamphim.vercel.app.ui.tv.TvBrowseMessage
+import nolelamphim.vercel.app.ui.tv.LocalTvNavigation
 
 @Composable
 fun SearchScreen(
@@ -75,6 +99,10 @@ fun SearchScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
     val isTv = LocalIsTv.current
+    if (isTv) {
+        TvSearchScreen(state, searchHistory, viewModel, onMovieClick, onOpenFilter)
+        return
+    }
     val horizontalPadding = if (isTv) 28.dp else 16.dp
 
     Column(
@@ -248,6 +276,159 @@ fun SearchScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TvSearchScreen(
+    state: SearchUiState,
+    history: List<String>,
+    viewModel: SearchViewModel,
+    onMovieClick: (Movie) -> Unit,
+    onOpenFilter: () -> Unit,
+) {
+    val inputRequester = remember { FocusRequester() }
+    val clearHistoryRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val scope = rememberCoroutineScope()
+    val navigation = LocalTvNavigation.current
+    var restoreResults by rememberSaveable { mutableStateOf(false) }
+    var focusResults by remember { mutableStateOf(false) }
+    var showClearHistory by remember { mutableStateOf(false) }
+    var inputFocusedInitially by remember { mutableStateOf(false) }
+    fun submit() {
+        if (state.query.isBlank()) return
+        focusResults = true
+        keyboard?.hide()
+        viewModel.submitSearch()
+    }
+    LaunchedEffect(navigation.isNavigationFocused) {
+        if (!restoreResults && !inputFocusedInitially && !navigation.isNavigationFocused) {
+            withFrameNanos { }
+            inputRequester.requestFocus()
+            inputFocusedInitially = true
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Tìm kiếm", fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = CinemaColors.TextPrimary)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = state.query,
+                    onValueChange = {
+                        restoreResults = false
+                        focusResults = false
+                        viewModel.onQueryChange(it)
+                    },
+                    placeholder = { Text("Nhập tên phim", fontSize = 18.sp, color = CinemaColors.TextMuted) },
+                    leadingIcon = { Icon(Icons.Default.Search, null, tint = CinemaColors.TextSecondary) },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp).focusRequester(inputRequester)
+                        .onPreviewKeyEvent {
+                            if (it.type == KeyEventType.KeyDown && it.key == Key.DirectionUp) {
+                                keyboard?.hide()
+                                navigation.focusNavigation()
+                                true
+                            } else false
+                        },
+                    shape = RoundedCornerShape(8.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { submit() }),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = CinemaColors.BorderSubtle,
+                        focusedContainerColor = CinemaColors.SurfaceCard,
+                        unfocusedContainerColor = CinemaColors.SurfaceCard,
+                        focusedTextColor = CinemaColors.TextPrimary,
+                        unfocusedTextColor = CinemaColors.TextPrimary,
+                    ),
+                )
+                TvBrowseButton("Tìm", ::submit, primary = true, enabled = state.query.isNotBlank(), navigateUpToMenu = true)
+                TvBrowseButton("Bộ lọc", onOpenFilter, navigateUpToMenu = true)
+            }
+            Text(
+                when {
+                    state.isLoading -> "Đang tìm “${state.query.trim()}”…"
+                    state.query.isBlank() -> "Dùng bàn phím trên TV để nhập tên phim."
+                    state.results.isNotEmpty() -> "${state.results.size} phim đã tải cho “${state.resultsQuery}”"
+                    else -> "Kết quả tìm kiếm"
+                },
+                fontSize = 15.sp, color = CinemaColors.TextSecondary,
+            )
+        }
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            when {
+                state.query.isBlank() -> Column(
+                    Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Tìm gần đây", fontSize = 22.sp, fontWeight = FontWeight.Medium, color = CinemaColors.TextPrimary, modifier = Modifier.weight(1f))
+                        if (history.isNotEmpty()) TvBrowseButton("Xóa lịch sử tìm", { showClearHistory = true }, Modifier.focusRequester(clearHistoryRequester))
+                    }
+                    if (history.isEmpty()) {
+                        Text("Tên phim bạn tìm sẽ được lưu ở đây.", fontSize = 16.sp, color = CinemaColors.TextSecondary)
+                    } else {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(4.dp)) {
+                            items(history, key = { it }) { query ->
+                                TvBrowseButton(query, {
+                                    keyboard?.hide()
+                                    focusResults = true
+                                    viewModel.onHistoryClick(query)
+                                })
+                            }
+                        }
+                    }
+                }
+                state.isLoading && state.results.isEmpty() -> TvBrowseMessage("Đang tìm phim", "Kết quả sẽ xuất hiện tại đây.")
+                state.error != null && state.results.isEmpty() -> TvBrowseMessage(
+                    "Chưa tìm được phim", "Kiểm tra kết nối rồi thử lại.", "Thử lại", viewModel::retry,
+                    requestFocus = focusResults,
+                )
+                state.results.isEmpty() -> TvBrowseMessage(
+                    "Không tìm thấy “${state.query.trim()}”", "Thử tên ngắn hơn hoặc kiểm tra chính tả.",
+                    "Sửa từ khóa", { inputRequester.requestFocus() }, requestFocus = focusResults,
+                )
+                else -> key(state.resultsQuery) {
+                    MovieGrid(
+                        movies = state.results,
+                        onMovieClick = {
+                            restoreResults = true
+                            keyboard?.hide()
+                            onMovieClick(it)
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        onLoadMore = if (state.error == null && !state.isLoading) viewModel::loadMore else null,
+                        focusKey = "search:${state.resultsQuery}",
+                        requestInitialFocus = restoreResults || (focusResults && !state.isLoading && state.resultsQuery == state.query.trim()),
+                        topFocusRequester = inputRequester,
+                        focusEnabled = !showClearHistory,
+                    )
+                }
+            }
+        }
+        if (state.error != null && state.results.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Chưa cập nhật được kết quả", fontSize = 15.sp, color = CinemaColors.TextSecondary, modifier = Modifier.weight(1f))
+                TvBrowseButton("Thử lại", viewModel::retry)
+            }
+        }
+        if (state.isLoadingMore) Text("Đang tải thêm…", fontSize = 15.sp, color = CinemaColors.TextSecondary, modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp))
+    }
+    if (showClearHistory) {
+        TvBrowseConfirmation(
+            "Xóa lịch sử tìm kiếm?", "Các từ khóa đã tìm trên thiết bị này sẽ được xóa.", "Xóa lịch sử",
+            onDismiss = {
+                showClearHistory = false
+                scope.launch { withFrameNanos { }; clearHistoryRequester.requestFocus() }
+            },
+            onConfirm = {
+                showClearHistory = false
+                viewModel.clearHistory()
+                scope.launch { withFrameNanos { }; inputRequester.requestFocus() }
+            },
+        )
     }
 }
 

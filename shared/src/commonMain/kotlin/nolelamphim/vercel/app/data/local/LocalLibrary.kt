@@ -39,6 +39,7 @@ data class WatchEntry(
     val episodeName: String,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
+    val episodeSlug: String = "",
 )
 
 fun FavoriteMovie.toMovie(): Movie =
@@ -65,6 +66,18 @@ class LocalLibrary(private val store: KeyValueStore = createKeyValueStore()) {
 
     private val _history = MutableStateFlow(readList(KEY_HISTORY, WatchEntry.serializer()))
     val history: StateFlow<List<WatchEntry>> = _history.asStateFlow()
+
+    // Keep the legacy recent-film list readable, and store each episode separately.
+    private val _episodeProgress = MutableStateFlow(
+        (readList(KEY_EPISODE_PROGRESS, EpisodeProgress.serializer()) + _history.value.mapNotNull { entry ->
+            if (entry.positionMs <= 0L) null else EpisodeProgress(
+                entry.slug, entry.serverName, entry.episodeSlug, entry.episodeName,
+                entry.serverIndex, entry.episodeIndex, entry.positionMs, entry.durationMs,
+            )
+        }).distinctBy { "${it.movieSlug}/${it.serverName}/${it.episodeSlug.ifBlank { it.episodeName }}" }
+            .take(MAX_EPISODE_PROGRESS),
+    )
+    val episodeProgress: StateFlow<List<EpisodeProgress>> = _episodeProgress.asStateFlow()
 
     private val _searchHistory = MutableStateFlow(readSearchHistory())
     val searchHistory: StateFlow<List<String>> = _searchHistory.asStateFlow()
@@ -102,6 +115,8 @@ class LocalLibrary(private val store: KeyValueStore = createKeyValueStore()) {
         episodeIndex: Int,
         episode: Episode,
     ) {
+        val identity = PlaybackIdentity(detail.slug, serverIndex, serverName, episodeIndex, episode.slug, episode.name)
+        val progress = _episodeProgress.value.firstOrNull { it.matches(identity) }
         val entry = WatchEntry(
             id = detail.id,
             name = detail.name,
@@ -113,6 +128,9 @@ class LocalLibrary(private val store: KeyValueStore = createKeyValueStore()) {
             serverName = serverName,
             episodeIndex = episodeIndex,
             episodeName = episode.name.ifBlank { "Tập ${episodeIndex + 1}" },
+            episodeSlug = episode.slug,
+            positionMs = progress?.positionMs ?: 0L,
+            durationMs = progress?.durationMs ?: 0L,
         )
         val updated = (listOf(entry) + _history.value.filterNot { it.slug == entry.slug })
             .take(MAX_HISTORY)
@@ -130,33 +148,65 @@ class LocalLibrary(private val store: KeyValueStore = createKeyValueStore()) {
         positionMs: Long,
         durationMs: Long,
     ) {
-        if (positionMs <= 0L) return
-        val current = _history.value
-        val existing = current.firstOrNull { it.slug == slug } ?: return
-        val updatedEntry = existing.copy(
-            serverIndex = serverIndex,
-            episodeIndex = episodeIndex,
-            positionMs = positionMs,
-            durationMs = durationMs,
-        )
-        val updated = listOf(updatedEntry) + current.filterNot { it.slug == slug }
-        _history.value = updated
-        store.putString(
-            KEY_HISTORY,
-            json.encodeToString(ListSerializer(WatchEntry.serializer()), updated),
-        )
+        val entry = _history.value.firstOrNull {
+            it.slug == slug && it.serverIndex == serverIndex && it.episodeIndex == episodeIndex
+        } ?: return
+        updateProgress(PlaybackIdentity(slug, serverIndex, entry.serverName, episodeIndex, entry.episodeSlug, entry.episodeName), positionMs, durationMs)
     }
+
+    fun updateProgress(identity: PlaybackIdentity, positionMs: Long, durationMs: Long) {
+        if (positionMs < 0L) return
+        val progress = EpisodeProgress(
+            identity.movieSlug, identity.serverName, identity.episodeSlug, identity.episodeName,
+            identity.serverIndex, identity.episodeIndex, positionMs,
+            durationMs.coerceAtLeast(0L),
+        )
+        _episodeProgress.value = (listOf(progress) + _episodeProgress.value.filterNot { it.matches(identity) })
+            .take(MAX_EPISODE_PROGRESS)
+        store.putString(KEY_EPISODE_PROGRESS, json.encodeToString(ListSerializer(EpisodeProgress.serializer()), _episodeProgress.value))
+
+        // A disposal callback for an older episode must not rename or overwrite the current one.
+        val current = _history.value
+        val existing = current.firstOrNull { it.slug == identity.movieSlug } ?: return
+        if (existing.serverIndex != identity.serverIndex || existing.episodeIndex != identity.episodeIndex) return
+        val updated = listOf(existing.copy(positionMs = positionMs, durationMs = durationMs.coerceAtLeast(0L))) +
+            current.filterNot { it.slug == identity.movieSlug }
+        _history.value = updated
+        store.putString(KEY_HISTORY, json.encodeToString(ListSerializer(WatchEntry.serializer()), updated))
+    }
+
+    fun getSavedProgress(identity: PlaybackIdentity): EpisodeProgress? =
+        _episodeProgress.value.firstOrNull { it.matches(identity) }
+
+    fun getSavedPosition(identity: PlaybackIdentity): Long = getSavedProgress(identity)?.positionMs ?: 0L
+
+    fun isEpisodeCompleted(movieSlug: String, serverName: String, episode: Episode): Boolean =
+        _episodeProgress.value.firstOrNull {
+            it.movieSlug == movieSlug && it.serverName.equals(serverName, ignoreCase = true) &&
+                sameEpisode(it.episodeSlug, it.episodeName, episode.slug, episode.name)
+        }?.isCompleted == true
 
     fun getSavedPosition(slug: String, serverIndex: Int, episodeIndex: Int): Long {
         val entry = _history.value.firstOrNull {
             it.slug == slug && it.serverIndex == serverIndex && it.episodeIndex == episodeIndex
         }
-        return entry?.positionMs ?: 0L
+        return _episodeProgress.value.firstOrNull {
+            it.movieSlug == slug && it.serverIndex == serverIndex && it.episodeIndex == episodeIndex
+        }?.positionMs ?: entry?.positionMs ?: 0L
     }
 
     fun clearHistory() {
         _history.value = emptyList()
         store.remove(KEY_HISTORY)
+        _episodeProgress.value = emptyList()
+        store.remove(KEY_EPISODE_PROGRESS)
+    }
+
+    fun removeHistory(slug: String) {
+        _history.value = _history.value.filterNot { it.slug == slug }
+        _episodeProgress.value = _episodeProgress.value.filterNot { it.movieSlug == slug }
+        store.putString(KEY_HISTORY, json.encodeToString(ListSerializer(WatchEntry.serializer()), _history.value))
+        store.putString(KEY_EPISODE_PROGRESS, json.encodeToString(ListSerializer(EpisodeProgress.serializer()), _episodeProgress.value))
     }
 
     fun addSearchQuery(query: String) {
@@ -194,7 +244,9 @@ class LocalLibrary(private val store: KeyValueStore = createKeyValueStore()) {
         const val KEY_FAVORITES = "library.favorites.v1"
         const val KEY_HISTORY = "library.history.v1"
         const val KEY_SEARCH_HISTORY = "library.search.v1"
+        const val KEY_EPISODE_PROGRESS = "library.episodes.v2"
         const val MAX_HISTORY = 30
+        const val MAX_EPISODE_PROGRESS = 600
         const val MAX_SEARCH_HISTORY = 10
     }
 }

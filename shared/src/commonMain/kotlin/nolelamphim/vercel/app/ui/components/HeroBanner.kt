@@ -71,8 +71,7 @@ import kotlin.math.roundToInt
 
 /**
  * Universal Hero Showcase:
- * - On TV: Cinefy Big-Screen Cinema Hero (matching cinefy-tv.html) with wide backdrop,
- *   eyebrow pill, large Space Grotesk headline, dual primary/secondary action buttons & indicator pips.
+ * - On TV: a static, compact feature with one clear detail action.
  * - On Mobile: 3D CoverFlow Carousel with vertical posters and centered "Xem ngay" button.
  */
 @Composable
@@ -101,9 +100,7 @@ fun HeroBannerCarousel(
     }
 }
 
-/**
- * Cinefy TV Big Screen Hero Canvas (matching cinefy-tv.html .hero section)
- */
+/** Static, compact TV feature. Its callback opens the detail screen. */
 @Composable
 private fun TvCinefyHeroBanner(
     movies: List<Movie>,
@@ -111,242 +108,74 @@ private fun TvCinefyHeroBanner(
     onInfoClick: ((Movie) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val featuredMovies = remember(movies) { movies.take(6) }
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { featuredMovies.size })
-
+    val movie = movies.firstOrNull() ?: return
+    val shape = RoundedCornerShape(8.dp)
+    val metadata = buildList {
+        movie.year?.takeIf { it > 0 }?.let { add(it.toString()) }
+        if (movie.originName.isNotBlank() && movie.originName != movie.name) add(movie.originName)
+    }.joinToString(" · ")
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(380.dp)
-            .padding(horizontal = 24.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(26.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(26.dp))
-            .background(Color(0xFF0D0E12)),
+            .height(224.dp)
+            .padding(horizontal = 24.dp)
+            .clip(shape)
+            .background(CinemaColors.TvSurface),
     ) {
-        HorizontalPager(
-            state = pagerState,
+        AsyncImage(
+            model = movie.thumbUrl ?: movie.posterUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
-        ) { page ->
-            val movie = featuredMovies[page]
-
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Wide Cinematic Backdrop
-                AsyncImage(
-                    model = movie.thumbUrl ?: movie.posterUrl,
-                    contentDescription = movie.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                Brush.horizontalGradient(
+                    0f to CinemaColors.TvBackground,
+                    0.5f to CinemaColors.TvBackground.copy(alpha = 0.9f),
+                    1f to CinemaColors.TvBackground.copy(alpha = 0.1f),
+                ),
+            ),
+        )
+        Column(
+            modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(0.65f).padding(24.dp),
+        ) {
+            Text(
+                text = movie.name,
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 28.sp, lineHeight = 34.sp),
+                fontWeight = FontWeight.SemiBold,
+                color = CinemaColors.TvWhite,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (metadata.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = metadata,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                    color = CinemaColors.TvMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-
-                // Left-to-right cinematic gradient (matching cinefy-tv.html)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.horizontalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color(0xF509090D),
-                                    0.36f to Color(0xD909090D),
-                                    0.78f to Color(0x1809090D),
-                                    1.0f to Color.Transparent,
-                                ),
-                            ),
-                        ),
-                )
-
-                // Bottom vignette gradient
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color.Transparent,
-                                    0.55f to Color.Transparent,
-                                    1.0f to Color(0x9908090C),
-                                ),
-                            ),
-                        ),
-                )
-
-                // Left Content Copy
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .fillMaxWidth(0.56f)
-                        .padding(start = 40.dp, end = 16.dp),
-                ) {
-                    // Eyebrow pill
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(30.dp))
-                            .background(Color(0xC9251910))
-                            .border(1.dp, Color(0x5CFF9B5C), RoundedCornerShape(30.dp))
-                            .padding(horizontal = 14.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = Color(0xFFFF812B),
-                            modifier = Modifier.size(15.dp),
-                        )
-                        Text(
-                            text = "NỔI BẬT · CINEFY ORIGINALS",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFFFFC18F),
-                            letterSpacing = 1.sp,
-                        )
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-
-                    // Title
-                    Text(
-                        text = movie.name.uppercase(),
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontSize = 38.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.5.sp,
-                            lineHeight = 44.sp,
-                        ),
-                        color = Color.White,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-
-                    // Synopsis / Subtitle
-                    val subtitle = if (movie.originName.isNotBlank() && movie.originName != movie.name) {
-                        "${movie.originName} • Năm ${movie.year ?: 2024} ${if (movie.rating > 0) "• ★ ${movie.rating}" else ""}"
-                    } else {
-                        "Trải nghiệm phim chiếu rạp đỉnh cao với hình ảnh chất lượng cao trên màn hình lớn."
-                    }
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
-                        color = Color(0xFFDDDDDD),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-
-                    Spacer(Modifier.height(24.dp))
-
-                    // Action buttons
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // 1. Primary "Xem ngay" button
-                        Box(
-                            modifier = Modifier
-                                .height(50.dp)
-                                .cinemaFocusable(
-                                    onClick = { onMovieClick(movie) },
-                                    shape = RoundedCornerShape(30.dp),
-                                    scaleFocused = 1.05f,
-                                    focusedBorderColor = Color(0xFFFFD0A9),
-                                )
-                                .clip(RoundedCornerShape(30.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(Color(0xFFFFB16D), Color(0xFFFF812B)),
-                                    ),
-                                )
-                                .padding(horizontal = 26.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = Color(0xFF211108),
-                                    modifier = Modifier.size(20.dp),
-                                )
-                                Text(
-                                    text = "Xem ngay",
-                                    color = Color(0xFF211108),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                )
-                            }
-                        }
-
-                        // 2. Secondary "Chi tiết" button
-                        Box(
-                            modifier = Modifier
-                                .height(50.dp)
-                                .cinemaFocusable(
-                                    onClick = {
-                                        if (onInfoClick != null) {
-                                            onInfoClick(movie)
-                                        } else {
-                                            onMovieClick(movie)
-                                        }
-                                    },
-                                    shape = RoundedCornerShape(30.dp),
-                                    scaleFocused = 1.05f,
-                                    focusedBorderColor = Color(0xFFFFD0A9),
-                                )
-                                .clip(RoundedCornerShape(30.dp))
-                                .background(Color.White.copy(alpha = 0.12f))
-                                .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(30.dp))
-                                .padding(horizontal = 26.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Text(
-                                    text = "Chi tiết",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                )
-                            }
-                        }
-                    }
-                }
             }
-        }
-
-        // Indicator Pips (Matching cinefy-tv.html .hero-pips)
-        if (featuredMovies.size > 1) {
+            Spacer(Modifier.height(16.dp))
             Row(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .cinemaFocusable(
+                        onClick = { (onInfoClick ?: onMovieClick)(movie) },
+                        shape = shape,
+                        scaleFocused = 1f,
+                        focusedBorderColor = CinemaColors.TvWhite,
+                    )
+                    .clip(shape)
+                    .background(CinemaColors.TvOrange)
+                    .height(44.dp)
+                    .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                repeat(featuredMovies.size) { index ->
-                    val isSelected = index == pagerState.currentPage
-                    val pillWidth by animateDpAsState(
-                        targetValue = if (isSelected) 24.dp else 7.dp,
-                        animationSpec = tween(250),
-                        label = "tv-pip-width",
-                    )
-                    Box(
-                        modifier = Modifier
-                            .height(7.dp)
-                            .width(pillWidth)
-                            .clip(CircleShape)
-                            .background(if (isSelected) Color(0xFFFF812B) else Color.White.copy(alpha = 0.35f)),
-                    )
-                }
+                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF211108), modifier = Modifier.size(20.dp))
+                Text("Chi tiết", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF211108))
             }
         }
     }

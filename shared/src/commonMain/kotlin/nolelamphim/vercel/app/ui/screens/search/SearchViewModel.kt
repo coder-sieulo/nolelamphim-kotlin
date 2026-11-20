@@ -24,6 +24,8 @@ class SearchViewModel(
     val searchHistory: StateFlow<List<String>> = localLibrary.searchHistory
 
     private var searchJob: Job? = null
+    private var loadMoreJob: Job? = null
+    private var generation = 0
 
     init {
         if (!initialQuery.isNullOrBlank()) {
@@ -32,8 +34,10 @@ class SearchViewModel(
     }
 
     fun onQueryChange(query: String) {
-        _uiState.value = _uiState.value.copy(query = query)
+        val requestGeneration = ++generation
+        _uiState.value = _uiState.value.copy(query = query, isLoading = query.isNotBlank(), isLoadingMore = false, error = null, canLoadMore = false)
         searchJob?.cancel()
+        loadMoreJob?.cancel()
 
         if (query.isBlank()) {
             _uiState.value = SearchUiState(query = query)
@@ -42,7 +46,7 @@ class SearchViewModel(
 
         searchJob = viewModelScope.launch {
             delay(SEARCH_DEBOUNCE_MS)
-            executeSearch(query)
+            executeSearch(query.trim(), requestGeneration)
         }
     }
 
@@ -51,57 +55,66 @@ class SearchViewModel(
         if (query.isBlank()) return
         localLibrary.addSearchQuery(query)
         searchJob?.cancel()
-        searchJob = viewModelScope.launch { executeSearch(query) }
+        loadMoreJob?.cancel()
+        val requestGeneration = ++generation
+        _uiState.value = _uiState.value.copy(isLoading = true, isLoadingMore = false, error = null)
+        searchJob = viewModelScope.launch { executeSearch(query, requestGeneration) }
     }
 
     fun onHistoryClick(query: String) {
         if (query.isBlank()) return
         localLibrary.addSearchQuery(query)
-        _uiState.value = _uiState.value.copy(query = query)
+        _uiState.value = _uiState.value.copy(query = query, isLoading = true, isLoadingMore = false, error = null)
         searchJob?.cancel()
-        searchJob = viewModelScope.launch { executeSearch(query) }
+        loadMoreJob?.cancel()
+        val requestGeneration = ++generation
+        searchJob = viewModelScope.launch { executeSearch(query, requestGeneration) }
     }
 
     fun clearHistory() = localLibrary.clearSearchHistory()
 
     fun retry() {
-        val query = _uiState.value.query.trim()
-        if (query.isBlank()) return
-        searchJob?.cancel()
-        searchJob = viewModelScope.launch { executeSearch(query) }
+        if (_uiState.value.results.isNotEmpty() && _uiState.value.resultsQuery == _uiState.value.query.trim()) {
+            loadMore()
+        } else submitSearch()
     }
 
     fun loadMore() {
         val state = _uiState.value
-        if (state.isLoading || !state.canLoadMore || state.query.isBlank()) return
-
-        viewModelScope.launch {
-            _uiState.value = state.copy(isLoading = true, error = null)
+        if (state.isLoading || state.isLoadingMore || !state.canLoadMore || state.query.isBlank() || state.resultsQuery != state.query.trim()) return
+        val requestGeneration = generation
+        _uiState.value = _uiState.value.copy(isLoadingMore = true, error = null)
+        loadMoreJob = viewModelScope.launch {
             try {
                 val result = repository.searchPage(state.query, state.page + 1)
-                _uiState.value = state.copy(
-                    isLoading = false,
-                    results = state.results + result.movies,
+                if (requestGeneration != generation) return@launch
+                _uiState.value = _uiState.value.copy(
+                    isLoadingMore = false,
+                    results = (state.results + result.movies).distinctBy { it.slug },
                     page = result.page,
                     canLoadMore = result.hasMore,
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.value = state.copy(
-                    isLoading = false,
+                if (requestGeneration != generation) return@launch
+                _uiState.value = _uiState.value.copy(
+                    isLoadingMore = false,
                     error = e.message ?: "Không tải thêm được",
                 )
             }
         }
     }
 
-    private suspend fun executeSearch(query: String) {
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+    private suspend fun executeSearch(query: String, requestGeneration: Int) {
+        if (requestGeneration != generation) return
+        _uiState.value = _uiState.value.copy(isLoading = true, isLoadingMore = false, error = null)
         try {
             val result = repository.searchPage(query, page = 1)
+            if (requestGeneration != generation) return
             _uiState.value = SearchUiState(
                 query = query,
+                resultsQuery = query,
                 results = result.movies,
                 page = result.page,
                 canLoadMore = result.hasMore,
@@ -109,6 +122,7 @@ class SearchViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            if (requestGeneration != generation) return
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 error = e.message ?: "Tìm kiếm thất bại",

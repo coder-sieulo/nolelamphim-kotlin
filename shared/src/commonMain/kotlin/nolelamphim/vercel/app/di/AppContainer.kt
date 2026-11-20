@@ -2,6 +2,7 @@ package nolelamphim.vercel.app.di
 
 import nolelamphim.vercel.app.data.MovieRepository
 import nolelamphim.vercel.app.data.local.LocalLibrary
+import nolelamphim.vercel.app.data.local.TvPreferences
 import nolelamphim.vercel.app.data.local.createKeyValueStore
 import nolelamphim.vercel.app.data.remote.MovieApi
 import nolelamphim.vercel.app.data.remote.MultiSourceService
@@ -14,4 +15,5 @@ object AppContainer {
     val multiSourceService by lazy { MultiSourceService(httpClient) }
     val movieRepository by lazy { MovieRepository(movieApi, multiSourceService) }
     val localLibrary by lazy { LocalLibrary(createKeyValueStore()) }
+    val tvPreferences by lazy { TvPreferences(createKeyValueStore()) }
 }

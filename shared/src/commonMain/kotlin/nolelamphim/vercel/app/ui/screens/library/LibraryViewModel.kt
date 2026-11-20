@@ -13,4 +13,6 @@ class LibraryViewModel(
     fun removeFavorite(slug: String) = localLibrary.removeFavorite(slug)
 
     fun clearHistory() = localLibrary.clearHistory()
+
+    fun removeHistory(slug: String) = localLibrary.removeHistory(slug)
 }

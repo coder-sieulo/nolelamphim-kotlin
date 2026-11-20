@@ -20,7 +20,10 @@ sealed interface WatchUiState {
         val hasNextEpisode: Boolean = false,
         val isFavorite: Boolean = false,
         val related: List<Movie> = emptyList(),
+        val sessionId: Long = 0L,
+        val initialPositionMs: Long = 0L,
+        val message: String? = null,
     ) : WatchUiState
 
-    data class Error(val message: String) : WatchUiState
+    data class Error(val message: String, val movie: MovieDetail? = null) : WatchUiState
 }
