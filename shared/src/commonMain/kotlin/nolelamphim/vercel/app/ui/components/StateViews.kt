@@ -20,8 +20,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,17 +37,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import nolelamphim.vercel.app.ui.theme.CinemaColors
+import nolelamphim.vercel.app.ui.theme.LocalIsTv
 import nolelamphim.vercel.app.ui.theme.cinemaFocusable
 
 @Composable
@@ -53,6 +60,27 @@ fun LoadingView(
     modifier: Modifier = Modifier,
     message: String = "Đang tải dữ liệu...",
 ) {
+    if (LocalIsTv.current) {
+        Column(
+            modifier = modifier.fillMaxSize().background(CinemaColors.TvBackground).padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(28.dp),
+                color = CinemaColors.TvMuted,
+                strokeWidth = 2.dp,
+            )
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                color = CinemaColors.TvMuted,
+                textAlign = TextAlign.Center,
+            )
+        }
+        return
+    }
     val transition = rememberInfiniteTransition(label = "loading-pulse")
     val pulseScale by transition.animateFloat(
         initialValue = 0.92f,
@@ -115,6 +143,16 @@ fun ErrorView(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (LocalIsTv.current) {
+        TvStateView(
+            title = "Không thể tải nội dung",
+            message = message,
+            modifier = modifier,
+            actionLabel = "Thử lại",
+            onAction = onRetry,
+        )
+        return
+    }
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -186,6 +224,16 @@ fun EmptyView(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
+    if (LocalIsTv.current) {
+        TvStateView(
+            title = "Chưa có nội dung",
+            message = message,
+            modifier = modifier,
+            actionLabel = actionLabel,
+            onAction = onAction,
+        )
+        return
+    }
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -234,6 +282,72 @@ fun EmptyView(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(actionLabel, color = CinemaColors.Primary, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvStateView(
+    title: String,
+    message: String,
+    modifier: Modifier,
+    actionLabel: String?,
+    onAction: (() -> Unit)?,
+) {
+    val actionRequester = remember { FocusRequester() }
+    val navigation = nolelamphim.vercel.app.ui.tv.LocalTvNavigation.current
+    val hasAction = actionLabel != null && onAction != null
+    LaunchedEffect(hasAction, navigation.isNavigationFocused) {
+        if (hasAction && !navigation.isNavigationFocused) {
+            androidx.compose.runtime.withFrameNanos { }
+            actionRequester.requestFocus()
+        }
+    }
+    Box(
+        modifier = modifier.fillMaxSize().background(CinemaColors.TvBackground).padding(28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier.widthIn(max = 560.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = CinemaColors.TvWhite,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                color = CinemaColors.TvMuted,
+                textAlign = TextAlign.Center,
+            )
+            if (actionLabel != null && onAction != null) {
+                Box(
+                    modifier = Modifier
+                        .focusRequester(actionRequester)
+                        .cinemaFocusable(
+                            onClick = onAction,
+                            shape = RoundedCornerShape(8.dp),
+                            scaleFocused = 1f,
+                            focusedBorderColor = CinemaColors.TvWhite,
+                        )
+                        .background(CinemaColors.TvOrange, RoundedCornerShape(8.dp))
+                        .heightIn(min = 48.dp)
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = actionLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color(0xFF211108),
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
             }
         }

@@ -105,6 +105,18 @@ fun DetailScreen(
     val scope = rememberCoroutineScope()
     val isTv = LocalIsTv.current
 
+    if (isTv) {
+        nolelamphim.vercel.app.ui.tv.TvDetailScreen(
+            state = state,
+            onBack = onBack,
+            onRetry = viewModel::load,
+            onPlay = onPlay,
+            onMovieClick = onMovieClick,
+            onToggleFavorite = viewModel::toggleFavorite,
+        )
+        return
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()

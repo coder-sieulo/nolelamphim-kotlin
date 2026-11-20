@@ -14,6 +14,7 @@ data class FilterUiState(
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val error: String? = null,
+    val taxonomyError: String? = null,
     val page: Int = 0,
     val totalPages: Int = 1,
     val totalItems: Int = 0,

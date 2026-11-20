@@ -11,6 +11,7 @@ object Routes {
     const val CATALOG = "catalog/{type}"
     const val DETAIL = "detail/{slug}"
     const val WATCH = "watch/{slug}/{server}/{episode}"
+    const val WATCH_RESUME = "resume/{slug}"
 
     fun catalog(type: String) = "catalog/$type"
 
@@ -24,4 +25,6 @@ object Routes {
 
     fun watch(slug: String, server: Int, episode: Int) =
         "watch/$slug/$server/$episode"
+
+    fun resume(slug: String) = "resume/$slug"
 }

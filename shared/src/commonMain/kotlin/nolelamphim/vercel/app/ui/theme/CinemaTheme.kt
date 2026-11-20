@@ -10,7 +10,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import nolelamphim.vercel.app.getPlatform
 
-// Cinefy & Pro Cinema Palette
+// Shared cinema palette; TV tokens stay neutral and readable at a distance.
 object CinemaColors {
     val Background = Color(0xFF0D0D11)
     val Surface = Color(0xFF16161D)
@@ -34,20 +34,19 @@ object CinemaColors {
     val NeonViolet = Color(0xFF8B5CF6)
     val NeonRed = Color(0xFFEF4444)
 
-    // Cinefy TV Big Screen Tokens (cinefy-tv.html)
-    val TvBackground = Color(0xFF08090C)
+    val TvBackground = Color(0xFF0B0D12)
     val TvOrange = Color(0xFFFF812B)
     val TvOrangeHighlight = Color(0xFFFFB16D)
     val TvOrangeGlow = Color(0x66FF812B)
     val TvEyebrowBg = Color(0xC9251910)
     val TvEyebrowBorder = Color(0x5CFF9B5C)
     val TvEyebrowText = Color(0xFFFFC18F)
-    val TvWhite = Color(0xFFF7F5F2)
-    val TvMuted = Color(0xFFA4A2A1)
+    val TvWhite = Color(0xFFF5F6F8)
+    val TvMuted = Color(0xFFB4BDC9)
     val TvGlass = Color(0x13FFFFFF) // rgba(255,255,255,0.075)
     val TvLine = Color(0x21FFFFFF)  // rgba(255,255,255,0.13)
-    val TvPosterBg = Color(0xFF17171B)
-    val TvSurface = Color(0xFF101014)
+    val TvPosterBg = Color(0xFF232A35)
+    val TvSurface = Color(0xFF171B23)
     val TvAmbientOrange = Color(0x26B45B29)
     val TvAmbientPurple = Color(0x1954406B)
 
@@ -105,7 +104,7 @@ private val DarkColorScheme = darkColorScheme(
     error = Color(0xFFEF4444),
 )
 
-// Cinefy TV Big Screen Cinema Dark Color Scheme (cinefy-tv.html)
+// Neutral TV surfaces with one orange action accent.
 private val TvDarkColorScheme = darkColorScheme(
     primary = CinemaColors.TvOrange,
     onPrimary = Color(0xFF211108),
@@ -181,60 +180,66 @@ private val CinemaTypography = Typography(
     ),
 )
 
-// Cinefy TV 10-Foot Distance Typography
+// TV type scale. Metadata is at least 14sp; primary text starts at 16sp.
 private val TvTypography = Typography(
+    displayLarge = androidx.compose.ui.text.TextStyle(fontSize = 36.sp, lineHeight = 44.sp, fontWeight = FontWeight.SemiBold),
+    displayMedium = androidx.compose.ui.text.TextStyle(fontSize = 34.sp, lineHeight = 42.sp, fontWeight = FontWeight.SemiBold),
+    displaySmall = androidx.compose.ui.text.TextStyle(fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold),
     headlineLarge = androidx.compose.ui.text.TextStyle(
-        fontSize = 38.sp,
-        lineHeight = 44.sp,
-        fontWeight = FontWeight.ExtraBold,
-        letterSpacing = 1.sp,
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
+        fontWeight = FontWeight.SemiBold,
     ),
     headlineMedium = androidx.compose.ui.text.TextStyle(
         fontSize = 28.sp,
         lineHeight = 34.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 0.5.sp,
+        fontWeight = FontWeight.SemiBold,
     ),
     headlineSmall = androidx.compose.ui.text.TextStyle(
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+        fontWeight = FontWeight.SemiBold,
+    ),
+    titleLarge = androidx.compose.ui.text.TextStyle(
         fontSize = 22.sp,
         lineHeight = 28.sp,
         fontWeight = FontWeight.SemiBold,
     ),
-    titleLarge = androidx.compose.ui.text.TextStyle(
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
-        fontWeight = FontWeight.SemiBold,
-    ),
     titleMedium = androidx.compose.ui.text.TextStyle(
-        fontSize = 17.sp,
-        lineHeight = 23.sp,
+        fontSize = 18.sp,
+        lineHeight = 25.sp,
         fontWeight = FontWeight.SemiBold,
     ),
     titleSmall = androidx.compose.ui.text.TextStyle(
-        fontSize = 15.sp,
-        lineHeight = 20.sp,
+        fontSize = 16.sp,
+        lineHeight = 23.sp,
         fontWeight = FontWeight.SemiBold,
     ),
     bodyLarge = androidx.compose.ui.text.TextStyle(
-        fontSize = 16.sp,
-        lineHeight = 23.sp,
+        fontSize = 18.sp,
+        lineHeight = 27.sp,
     ),
     bodyMedium = androidx.compose.ui.text.TextStyle(
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
     ),
     bodySmall = androidx.compose.ui.text.TextStyle(
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
+        fontSize = 14.sp,
+        lineHeight = 21.sp,
+    ),
+    labelLarge = androidx.compose.ui.text.TextStyle(
+        fontSize = 16.sp,
+        lineHeight = 22.sp,
+        fontWeight = FontWeight.SemiBold,
     ),
     labelMedium = androidx.compose.ui.text.TextStyle(
-        fontSize = 13.sp,
-        lineHeight = 17.sp,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
         fontWeight = FontWeight.Medium,
     ),
     labelSmall = androidx.compose.ui.text.TextStyle(
-        fontSize = 11.sp,
-        lineHeight = 15.sp,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
         fontWeight = FontWeight.SemiBold,
     ),
 )

@@ -26,12 +26,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import nolelamphim.vercel.app.di.AppContainer
@@ -43,6 +47,8 @@ import nolelamphim.vercel.app.ui.components.MovieGrid
 import nolelamphim.vercel.app.ui.theme.CinemaColors
 import nolelamphim.vercel.app.ui.theme.LocalIsTv
 import nolelamphim.vercel.app.ui.theme.cinemaFocusable
+import nolelamphim.vercel.app.ui.tv.TvBrowseButton
+import nolelamphim.vercel.app.ui.tv.TvBrowseMessage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +63,10 @@ fun CatalogScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val isTv = LocalIsTv.current
+    if (isTv) {
+        TvCatalogScreen(type, state, viewModel, onBack, onMovieClick)
+        return
+    }
     val horizontalPadding = if (isTv) 28.dp else 16.dp
 
     Column(
@@ -131,5 +141,56 @@ fun CatalogScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TvCatalogScreen(
+    type: String,
+    state: CatalogUiState,
+    viewModel: CatalogViewModel,
+    onBack: () -> Unit,
+    onMovieClick: (Movie) -> Unit,
+) {
+    val backRequester = remember { FocusRequester() }
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            TvBrowseButton("Quay lại", onBack, Modifier.focusRequester(backRequester), navigateUpToMenu = true)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(state.title, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, color = CinemaColors.TextPrimary)
+                Text(
+                    if (state.isRefreshing) "Đang cập nhật danh sách…" else "${state.movies.size} phim đã tải",
+                    fontSize = 15.sp, color = CinemaColors.TextSecondary,
+                )
+            }
+            TvBrowseButton("Tải lại", viewModel::refresh, enabled = !state.isRefreshing && !state.isLoading, navigateUpToMenu = true)
+        }
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            when {
+                state.isLoading && state.movies.isEmpty() -> TvBrowseMessage("Đang tải phim", "Danh sách sẽ xuất hiện tại đây.")
+                state.error != null && state.movies.isEmpty() -> TvBrowseMessage("Chưa tải được danh sách", "Kiểm tra kết nối rồi thử lại.", "Thử lại", viewModel::loadFirstPage, requestFocus = true)
+                state.movies.isEmpty() -> TvBrowseMessage("Danh mục chưa có phim", "Thử khám phá một danh mục khác.", "Quay lại", onBack, requestFocus = true)
+                else -> MovieGrid(
+                    movies = state.movies,
+                    onMovieClick = onMovieClick,
+                    modifier = Modifier.fillMaxSize(),
+                    onLoadMore = if (state.error == null) viewModel::loadMore else null,
+                    focusKey = "catalog:$type",
+                    requestInitialFocus = true,
+                    topFocusRequester = backRequester,
+                )
+            }
+        }
+        if (state.error != null && state.movies.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Chưa cập nhật được danh sách", fontSize = 15.sp, color = CinemaColors.TextSecondary, modifier = Modifier.weight(1f))
+                TvBrowseButton("Thử lại", if (state.hasMore) viewModel::loadMore else viewModel::refresh)
+            }
+        }
+        if (state.isLoadingMore) Text("Đang tải thêm…", fontSize = 15.sp, color = CinemaColors.TextSecondary, modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp))
     }
 }

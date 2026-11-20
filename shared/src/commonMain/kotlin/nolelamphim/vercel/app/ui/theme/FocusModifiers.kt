@@ -1,11 +1,7 @@
 package nolelamphim.vercel.app.ui.theme
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,7 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -28,20 +23,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
-
 /**
  * CompositionLocal indicating if current device is Android TV / 10-foot UI.
  */
 val LocalIsTv = compositionLocalOf { false }
 
+/** The TV experience starts with decorative movement disabled. */
+val LocalTvReducedMotion = compositionLocalOf { true }
+
 /**
- * Reusable modifier for focus & hover interactions that look stunning on both TV (D-pad)
- * and Mobile/Desktop, featuring bouncy spring physics and glowing neon borders.
+ * One activation target for touch and remote input. TV focus keeps a stable outline.
  */
 @Composable
 fun Modifier.cinemaFocusable(
@@ -57,18 +48,27 @@ fun Modifier.cinemaFocusable(
     var isFocused by remember { mutableStateOf(false) }
     val isTv = LocalIsTv.current
 
-    // Snappy, cinematic scale: 1.075x on TV (matching cinefy-tv.html), 1.03x on mobile/desktop
-    val effectiveScale = if (scaleFocused == 1.05f && isTv) 1.075f else scaleFocused
+    val reducedMotion = LocalTvReducedMotion.current
+    val effectiveScale = when {
+        isTv && reducedMotion -> 1f
+        isTv -> scaleFocused.coerceIn(1f, 1.02f)
+        else -> scaleFocused
+    }
 
     val scale by animateFloatAsState(
         targetValue = if (isFocused) effectiveScale else 1f,
-        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = if (isTv && reducedMotion) 0 else 120, easing = FastOutSlowInEasing),
         label = "cinema-focus-scale",
     )
 
-    // Snappy border highlight: 3dp on TV with luminous orange2 highlight
-    val effectiveBorderColor = if (isFocused) focusedBorderColor else Color.White.copy(alpha = 0.08f)
-    val currentBorderWidth = if (isFocused) (if (isTv) 3.dp else borderWidth) else 1.dp
+    val focusColor = if (isTv && focusedBorderColor == Color(0xFFFFB16D)) CinemaColors.TvWhite else focusedBorderColor
+    val effectiveBorderColor = when {
+        !enabled -> Color.Transparent
+        isFocused -> focusColor
+        isTv -> Color.Transparent
+        else -> Color.White.copy(alpha = 0.08f)
+    }
+    val currentBorderWidth = if (isTv) 3.dp else if (isFocused) borderWidth else 1.dp
     val interactionSource = remember { MutableInteractionSource() }
 
     return this
@@ -83,13 +83,6 @@ fun Modifier.cinemaFocusable(
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
-            if (isFocused && isTv) {
-                shadowElevation = 18.dp.toPx()
-                spotShadowColor = Color(0x80FF812B)
-                ambientShadowColor = Color(0x40FF812B)
-                this.shape = shape
-                this.clip = false
-            }
         }
 
         .border(
@@ -99,23 +92,12 @@ fun Modifier.cinemaFocusable(
         )
         .then(
             if (onClick != null) {
-                Modifier
-                    .onKeyEvent { keyEvent ->
-                        if (enabled && keyEvent.type == KeyEventType.KeyUp &&
-                            (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter || keyEvent.key == Key.NumPadEnter)
-                        ) {
-                            onClick.invoke()
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                    .clickable(
-                        enabled = enabled,
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onClick,
-                    )
+                Modifier.clickable(
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                )
             } else {
                 Modifier.focusable(enabled = enabled, interactionSource = interactionSource)
             }
@@ -130,6 +112,7 @@ fun Modifier.bounceClick(
     scaleDown: Float = 0.97f,
     onClick: () -> Unit,
 ): Modifier {
+    if (LocalIsTv.current) return cinemaFocusable(onClick = onClick, scaleFocused = 1f)
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,

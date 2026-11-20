@@ -122,6 +122,7 @@ fun WatchScreen(
     onNextEpisode: () -> Unit = {},
     onMovieClick: (slug: String) -> Unit = {},
     onMinimize: ((MiniPlayerData) -> Unit)? = null,
+    preferSavedEpisode: Boolean = false,
     viewModel: WatchViewModel = viewModel {
         WatchViewModel(
             repository = AppContainer.movieRepository,
@@ -129,6 +130,7 @@ fun WatchScreen(
             slug = slug,
             initialServerIndex = serverIndex,
             initialEpisodeIndex = episodeIndex,
+            preferSavedEpisode = preferSavedEpisode,
         )
     },
 ) {
@@ -139,7 +141,7 @@ fun WatchScreen(
 
     val initialResumePos = remember(slug, serverIndex, episodeIndex) {
         val miniPos = MiniPlayerManager.consumeResumePosition(slug, serverIndex, episodeIndex)
-        if (miniPos > 0L) miniPos else AppContainer.localLibrary.getSavedPosition(slug, serverIndex, episodeIndex)
+        miniPos.coerceAtLeast(0L)
     }
 
     Box(
@@ -148,33 +150,44 @@ fun WatchScreen(
             .background(CinemaColors.Background),
     ) {
         when (val s = state) {
-            WatchUiState.Loading -> LoadingView(message = "Đang kết nối luồng phát...")
+            WatchUiState.Loading -> {
+                if (isTv) nolelamphim.vercel.app.ui.tv.PlatformBackHandler(onBack = onBack)
+                LoadingView(message = "Đang kết nối nguồn phát…")
+            }
 
-            is WatchUiState.Error -> ErrorView(
-                message = s.message,
-                onRetry = { viewModel.load() },
-            )
+            is WatchUiState.Error -> {
+                if (isTv) TvPlaybackLoadError(
+                    message = s.message,
+                    movie = s.movie,
+                    onRetry = { viewModel.load() },
+                    onSelectEpisode = { source, episode -> viewModel.selectEpisode(source, episode) },
+                    onBack = onBack,
+                ) else ErrorView(message = s.message, onRetry = { viewModel.load() })
+            }
 
             is WatchUiState.Success -> {
                 if (isTv) {
-                    TvWatchLayout(
+                    TvPlaybackScreen(
                         state = s,
-                        initialPositionMs = initialResumePos,
+                        initialPositionMs = if (s.sessionId == 1L && initialResumePos > 0L) initialResumePos else s.initialPositionMs,
                         onProgressChanged = { pos, dur ->
-                            viewModel.updateProgress(pos, dur)
+                            viewModel.updateProgress(pos, dur, s.sessionId)
                         },
                         onBack = onBack,
                         onSelectEpisode = { serverIdx, epIdx ->
                             viewModel.selectEpisode(serverIdx, epIdx)
                         },
                         onNext = { viewModel.nextEpisode() },
+                        onSelectSource = { viewModel.selectSource(it) },
+                        onSaveProgress = { viewModel.saveProgress(s.sessionId) },
+                        onRetry = { viewModel.load() },
                     )
                 } else {
                     MobileWatchLayout(
                         state = s,
-                        initialPositionMs = initialResumePos,
+                        initialPositionMs = if (s.sessionId == 1L && initialResumePos > 0L) initialResumePos else s.initialPositionMs,
                         onProgressChanged = { pos, dur ->
-                            viewModel.updateProgress(pos, dur)
+                            viewModel.updateProgress(pos, dur, s.sessionId)
                         },
                         onBack = onBack,
                         onMinimize = onMinimize,
@@ -1325,354 +1338,6 @@ private fun InPlayerEpisodeGrid(
                             fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
                         )
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TvWatchLayout(
-    state: WatchUiState.Success,
-    initialPositionMs: Long = 0L,
-    onProgressChanged: (positionMs: Long, durationMs: Long) -> Unit = { _, _ -> },
-    onBack: () -> Unit,
-    onSelectEpisode: (serverIndex: Int, episodeIndex: Int) -> Unit,
-    onNext: () -> Unit,
-) {
-    var currentPositionMs by remember(state.currentServerIndex, state.currentEpisodeIndex) {
-        mutableStateOf(initialPositionMs)
-    }
-    var isHudVisible by remember { mutableStateOf(true) }
-    var isEpisodeDrawerOpen by remember { mutableStateOf(false) }
-    var selectedServerIdx by remember(state.currentServerIndex) {
-        mutableStateOf(state.currentServerIndex)
-    }
-
-    // Auto-hide HUD after 5 seconds if drawer is closed
-    LaunchedEffect(isHudVisible, isEpisodeDrawerOpen) {
-        if (isHudVisible && !isEpisodeDrawerOpen) {
-            delay(5000)
-            isHudVisible = false
-        }
-    }
-
-    val tvFocusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(Unit) {
-        tvFocusRequester.requestFocus()
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .focusRequester(tvFocusRequester)
-            .focusable()
-            .onKeyEvent { event ->
-                if (event.type == KeyEventType.KeyUp) {
-                    when (event.key) {
-                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
-                            isHudVisible = !isHudVisible
-                            true
-                        }
-                        Key.DirectionUp, Key.DirectionDown -> {
-                            if (!isHudVisible) {
-                                isHudVisible = true
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                        Key.Back, Key.Escape -> {
-                            if (isEpisodeDrawerOpen) {
-                                isEpisodeDrawerOpen = false
-                                true
-                            } else if (isHudVisible) {
-                                isHudVisible = false
-                                true
-                            } else {
-                                onBack()
-                                true
-                            }
-                        }
-                        else -> false
-                    }
-                } else {
-                    false
-                }
-            }
-            .clickable {
-                isHudVisible = !isHudVisible
-            },
-    ) {
-        // 1. Fullscreen Video
-        VideoPlayer(
-            url = state.playbackUrl,
-            fallbackUrl = state.embedUrl,
-            modifier = Modifier.fillMaxSize(),
-            initialPositionMs = currentPositionMs,
-            onPositionChanged = { cur, dur ->
-                currentPositionMs = cur
-                onProgressChanged(cur, dur)
-            },
-        )
-
-        // 2. Cinema TV HUD Overlay
-        AnimatedVisibility(
-            visible = isHudVisible || isEpisodeDrawerOpen,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200)),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Top gradient vignette
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    Color.Black.copy(alpha = 0.95f),
-                                    Color.Black.copy(alpha = 0.65f),
-                                    Color.Transparent,
-                                ),
-                            ),
-                        )
-                        .align(Alignment.TopCenter),
-                )
-
-                // Top Floating Bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
-                        .padding(horizontal = 36.dp, vertical = 24.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(18.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.6f))
-                                .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
-                                .cinemaFocusable(
-                                    onClick = onBack,
-                                    shape = CircleShape,
-                                    scaleFocused = 1.12f,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Quay lại",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
-
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Text(
-                                    text = state.movieName,
-                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Black,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(CinemaColors.Primary)
-                                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                                ) {
-                                    Text(
-                                        text = "VIP 1080p",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.ExtraBold,
-                                    )
-                                }
-                            }
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Text(
-                                    text = state.episodeName,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                                    color = CinemaColors.Primary,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    text = "•  ${state.movie.servers.getOrNull(state.currentServerIndex)?.name?.ifBlank { "Máy chủ chính" } ?: "Máy chủ chính"}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color.White.copy(alpha = 0.65f),
-                                )
-                            }
-                        }
-                    }
-
-                    // Top Right Rating
-                    if (state.movie.rating > 0) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Black.copy(alpha = 0.6f))
-                                .border(1.dp, CinemaColors.Gold.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Star, contentDescription = null, tint = CinemaColors.Gold, modifier = Modifier.size(15.dp))
-                                Spacer(Modifier.width(5.dp))
-                                Text(
-                                    text = "${((state.movie.rating * 10).toInt() / 10.0)}",
-                                    color = CinemaColors.Gold,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Bottom vignette
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.65f),
-                                    Color.Black.copy(alpha = 0.95f),
-                                ),
-                            ),
-                        )
-                        .align(Alignment.BottomCenter),
-                )
-
-                // Bottom Floating Control Bar (when drawer is closed)
-                if (!isEpisodeDrawerOpen) {
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 32.dp, start = 36.dp, end = 36.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // Episode Drawer Button
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.14f))
-                                .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
-                                .cinemaFocusable(
-                                    onClick = {
-                                        isEpisodeDrawerOpen = true
-                                        isHudVisible = true
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    scaleFocused = 1.08f,
-                                )
-                                .padding(horizontal = 20.dp, vertical = 12.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Danh sách tập", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                        }
-
-                        // Next Episode CTA
-                        if (state.hasNextEpisode) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(CinemaColors.Primary)
-                                    .cinemaFocusable(
-                                        onClick = onNext,
-                                        shape = RoundedCornerShape(12.dp),
-                                        scaleFocused = 1.08f,
-                                        focusedBorderColor = Color.White,
-                                    )
-                                    .padding(horizontal = 22.dp, vertical = 12.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.SkipNext, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Tập tiếp theo", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                }
-                            }
-                        }
-
-                        // Server Switcher Button
-                        if (state.movie.servers.size > 1) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.White.copy(alpha = 0.1f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                                    .cinemaFocusable(
-                                        onClick = {
-                                            val nextServer = (selectedServerIdx + 1) % state.movie.servers.size
-                                            selectedServerIdx = nextServer
-                                            onSelectEpisode(nextServer, state.currentEpisodeIndex)
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        scaleFocused = 1.08f,
-                                    )
-                                    .padding(horizontal = 18.dp, vertical = 12.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Dns, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        text = state.movie.servers.getOrNull(selectedServerIdx)?.name?.ifBlank { "Đổi server" } ?: "Đổi server",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.sp,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 3. Sliding Episode Drawer (TV)
-                AnimatedVisibility(
-                    visible = isEpisodeDrawerOpen,
-                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                ) {
-                    TvEpisodeDrawerSheet(
-                        movie = state.movie,
-                        selectedServerIndex = selectedServerIdx,
-                        activeEpisodeIndex = if (selectedServerIdx == state.currentServerIndex) state.currentEpisodeIndex else -1,
-                        onSelectServer = { selectedServerIdx = it },
-                        onSelectEpisode = { epIdx ->
-                            onSelectEpisode(selectedServerIdx, epIdx)
-                            isEpisodeDrawerOpen = false
-                        },
-                        onClose = { isEpisodeDrawerOpen = false },
-                    )
                 }
             }
         }

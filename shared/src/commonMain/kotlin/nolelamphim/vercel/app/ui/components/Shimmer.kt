@@ -43,6 +43,7 @@ fun Modifier.shimmerEffect(
     baseColor: Color = Color(0xFF181822),
     highlightColor: Color = Color(0xFF2B2B3A),
 ): Modifier {
+    if (LocalIsTv.current) return this.clip(shape).background(baseColor)
     val transition = rememberInfiniteTransition(label = "shimmer-transition")
     val translateAnimation = transition.animateFloat(
         initialValue = 0f,
@@ -72,6 +73,10 @@ fun Modifier.shimmerEffect(
 @Composable
 fun HomeSkeletonScreen(modifier: Modifier = Modifier) {
     val isTv = LocalIsTv.current
+    if (isTv) {
+        TvHomeSkeleton(modifier)
+        return
+    }
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -147,7 +152,7 @@ fun HomeSkeletonScreen(modifier: Modifier = Modifier) {
 @Composable
 fun MovieRowSkeleton(modifier: Modifier = Modifier) {
     val isTv = LocalIsTv.current
-    val cardWidth = if (isTv) 175.dp else 136.dp
+    val cardWidth = if (isTv) 152.dp else 136.dp
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -155,7 +160,7 @@ fun MovieRowSkeleton(modifier: Modifier = Modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = if (isTv) 24.dp else 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -164,7 +169,7 @@ fun MovieRowSkeleton(modifier: Modifier = Modifier) {
         }
 
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = if (isTv) 24.dp else 16.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(5) {
@@ -176,9 +181,9 @@ fun MovieRowSkeleton(modifier: Modifier = Modifier) {
                             .shimmerEffect(RoundedCornerShape(12.dp)),
                     )
                     Spacer(Modifier.height(8.dp))
-                    Box(modifier = Modifier.fillMaxWidth(0.9f).height(14.dp).shimmerEffect(RoundedCornerShape(4.dp)))
+                    Box(modifier = Modifier.fillMaxWidth(0.9f).height(if (isTv) 44.dp else 14.dp).shimmerEffect(RoundedCornerShape(4.dp)))
                     Spacer(Modifier.height(4.dp))
-                    Box(modifier = Modifier.fillMaxWidth(0.5f).height(11.dp).shimmerEffect(RoundedCornerShape(4.dp)))
+                    Box(modifier = Modifier.fillMaxWidth(0.5f).height(if (isTv) 20.dp else 11.dp).shimmerEffect(RoundedCornerShape(4.dp)))
                 }
             }
         }
@@ -188,6 +193,10 @@ fun MovieRowSkeleton(modifier: Modifier = Modifier) {
 @Composable
 fun DetailSkeletonScreen(modifier: Modifier = Modifier) {
     val isTv = LocalIsTv.current
+    if (isTv) {
+        TvDetailSkeleton(modifier)
+        return
+    }
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -259,6 +268,56 @@ fun DetailSkeletonScreen(modifier: Modifier = Modifier) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TvHomeSkeleton(modifier: Modifier = Modifier) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize().background(CinemaColors.TvBackground),
+        contentPadding = PaddingValues(top = 24.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(28.dp),
+    ) {
+        item {
+            Box(Modifier.padding(horizontal = 24.dp).width(240.dp).height(30.dp).shimmerEffect())
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.padding(horizontal = 24.dp).width(180.dp).height(24.dp).shimmerEffect())
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    items(4) {
+                        Column(Modifier.width(256.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).shimmerEffect())
+                            Box(Modifier.fillMaxWidth(0.85f).height(23.dp).shimmerEffect())
+                            Box(Modifier.fillMaxWidth(0.65f).height(21.dp).shimmerEffect())
+                        }
+                    }
+                }
+            }
+        }
+        item { MovieRowSkeleton() }
+    }
+}
+
+@Composable
+private fun TvDetailSkeleton(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxSize().background(CinemaColors.TvBackground).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Box(Modifier.width(320.dp).height(36.dp).shimmerEffect())
+        Box(Modifier.width(240.dp).height(22.dp).shimmerEffect())
+        Box(Modifier.fillMaxWidth(0.7f).height(48.dp).shimmerEffect())
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            repeat(3) { Box(Modifier.width(144.dp).height(48.dp).shimmerEffect()) }
+        }
+        Box(Modifier.width(200.dp).height(28.dp).shimmerEffect())
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            repeat(5) { Box(Modifier.width(112.dp).height(48.dp).shimmerEffect()) }
         }
     }
 }

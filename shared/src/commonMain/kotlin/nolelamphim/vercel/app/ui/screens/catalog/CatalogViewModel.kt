@@ -3,6 +3,7 @@ package nolelamphim.vercel.app.ui.screens.catalog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -17,6 +18,8 @@ class CatalogViewModel(
 
     private val _uiState = MutableStateFlow(CatalogUiState(title = title))
     val uiState = _uiState.asStateFlow()
+    private var request: Job? = null
+    private var generation = 0
 
     init {
         loadFirstPage()
@@ -30,10 +33,13 @@ class CatalogViewModel(
         }
 
     fun loadFirstPage() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        request?.cancel()
+        val requestGeneration = ++generation
+        _uiState.value = _uiState.value.copy(isLoading = true, isLoadingMore = false, error = null)
+        request = viewModelScope.launch {
             try {
                 val result = fetch(1)
+                if (requestGeneration != generation) return@launch
                 _uiState.value = CatalogUiState(
                     title = title,
                     movies = result.movies,
@@ -44,6 +50,7 @@ class CatalogViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                if (requestGeneration != generation) return@launch
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = e.message ?: "Không tải được danh sách phim",
@@ -54,10 +61,13 @@ class CatalogViewModel(
 
     fun refresh() {
         if (_uiState.value.isRefreshing) return
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
+        request?.cancel()
+        val requestGeneration = ++generation
+        _uiState.value = _uiState.value.copy(isRefreshing = true, isLoadingMore = false, error = null)
+        request = viewModelScope.launch {
             try {
                 val result = fetch(1)
+                if (requestGeneration != generation) return@launch
                 _uiState.value = CatalogUiState(
                     title = title,
                     movies = result.movies,
@@ -68,6 +78,7 @@ class CatalogViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                if (requestGeneration != generation) return@launch
                 _uiState.value = _uiState.value.copy(
                     isRefreshing = false,
                     error = e.message ?: "Không tải lại được",
@@ -78,21 +89,23 @@ class CatalogViewModel(
 
     fun loadMore() {
         val state = _uiState.value
-        if (state.isLoading || state.isLoadingMore || !state.hasMore) return
-
-        viewModelScope.launch {
-            _uiState.value = state.copy(isLoadingMore = true, error = null)
+        if (state.isLoading || state.isRefreshing || state.isLoadingMore || !state.hasMore) return
+        val requestGeneration = generation
+        _uiState.value = state.copy(isLoadingMore = true, error = null)
+        request = viewModelScope.launch {
             try {
                 val result = fetch(state.page + 1)
+                if (requestGeneration != generation) return@launch
                 _uiState.value = _uiState.value.copy(
                     isLoadingMore = false,
-                    movies = state.movies + result.movies,
+                    movies = (state.movies + result.movies).distinctBy { it.slug },
                     page = result.page,
                     totalPages = result.totalPages,
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                if (requestGeneration != generation) return@launch
                 _uiState.value = state.copy(
                     isLoadingMore = false,
                     error = e.message ?: "Không tải thêm được",
